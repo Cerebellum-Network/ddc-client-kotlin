@@ -13,7 +13,6 @@ import io.vertx.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.ApplicationTopology
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.zip.CRC32
 import kotlin.test.assertEquals
@@ -39,7 +38,7 @@ internal class DdcConsumerTest {
     var testSubject = DdcConsumer(DDC_NODE_URL, appPubKey)
 
     @Test
-    fun `DDC consumer (positive scenario)`() {
+    fun `DDC consumer - consume existing data (positive scenario)`() {
         //given
         val createAppReq = mapOf(
             "appPubKey" to appPubKey,
@@ -70,6 +69,57 @@ internal class DdcConsumerTest {
         Thread.sleep(1000L)
 
         //then
+        assertEquals(expectedPieces, pieces)
+    }
+
+    @Test
+    fun `DDC consumer - streaming ongoing data (positive scenario)`() {
+        //given
+        val createAppReq = mapOf(
+            "appPubKey" to appPubKey,
+            "tierId" to TIER_ID,
+            "signature" to Hex.encode(signer.sign("$appPubKey$TIER_ID".toByteArray()))
+        ).let(::JsonObject)
+
+        client.postAbs("$DDC_NODE_URL$API_PREFIX/apps")
+            .sendJsonObject(createAppReq)
+            .toCompletionStage()
+            .toCompletableFuture()
+            .get()
+            .also { assertEquals(OK.code(), it.statusCode()) }
+
+        savePiece("user_1", "1", "{\"event_type\":\"first event\",\"location\":\"USA\",\"success\":\"false\"}", "2021-01-01T00:00:00.000Z")
+        savePiece("user_2", "2", "{\"event_type\":\"second event\",\"location\":\"EU\",\"count\":2}", "2021-01-01T00:01:00.000Z")
+
+        val expectedPieces = mutableSetOf(
+            Piece("1", appPubKey, "user_1", Instant.parse("2021-01-01T00:00:00.000Z"), "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
+            Piece("2", appPubKey, "user_2", Instant.parse("2021-01-01T00:01:00.000Z"), "{\"event_type\":\"second event\",\"location\":\"EU\"}")
+        )
+
+        //when
+        val data = testSubject.consume("test-stream", DataQuery("", "", listOf("event_type", "location")))
+
+        val pieces = CopyOnWriteArraySet<Piece>()
+        data.subscribe().with{ piece -> pieces.add(piece) }
+        Thread.sleep(1000L)
+
+        //then
+        assertEquals(expectedPieces, pieces)
+
+        //when
+        savePiece("user_1", "3", "{\"event_type\":\"third event\",\"location\":\"Canada\",\"success\":\"true\"}", "2021-01-01T00:02:00.000Z")
+        Thread.sleep(1000L)
+
+        //then
+        expectedPieces.add(Piece("3", appPubKey, "user_1", Instant.parse("2021-01-01T00:02:00.000Z"), "{\"event_type\":\"third event\",\"location\":\"Canada\"}"))
+        assertEquals(expectedPieces, pieces)
+
+        //when
+        savePiece("user_3", "4", "{\"event_type\":\"forth event\",\"location\":\"Japan\"}", "2021-01-01T00:03:00.000Z")
+        Thread.sleep(1000L)
+
+        //then
+        expectedPieces.add(Piece("4", appPubKey, "user_3", Instant.parse("2021-01-01T00:03:00.000Z"), "{\"event_type\":\"forth event\",\"location\":\"Japan\"}"))
         assertEquals(expectedPieces, pieces)
     }
 

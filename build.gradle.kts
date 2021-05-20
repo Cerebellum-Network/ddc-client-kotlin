@@ -7,24 +7,25 @@ plugins {
 }
 
 group = "com.github.cerebellum-network"
-version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
 }
 
+val vertxVersion = "4.0.3"
+val log4jVersion = "2.7"
 dependencies {
     // Vert.x
-    implementation("io.vertx:vertx-lang-kotlin:4.0.3")
-    implementation("io.vertx:vertx-web-client:4.0.3")
+    implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
+    implementation("io.vertx:vertx-web-client:$vertxVersion")
 
     // Smallrye
     implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:1.5.0")
 
-    // Log4j2
-    implementation("org.apache.logging.log4j:log4j-api:2.7")
-    implementation("org.apache.logging.log4j:log4j-core:2.7")
-    implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.7")
+    // Log4j
+    implementation("org.apache.logging.log4j:log4j-api:$log4jVersion")
+    implementation("org.apache.logging.log4j:log4j-core:$log4jVersion")
+    implementation("org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion")
 
     // JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.8")

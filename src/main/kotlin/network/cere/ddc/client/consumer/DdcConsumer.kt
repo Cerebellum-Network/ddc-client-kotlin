@@ -14,6 +14,7 @@ import network.cere.ddc.client.api.ApplicationTopology
 class DdcConsumer(
     private val ddcNodeUrl: String,
     private val appPubKey: String,
+    vertx: Vertx = Vertx.vertx()
 ) : Consumer {
 
     private companion object {
@@ -22,11 +23,11 @@ class DdcConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val vertx: Vertx = Vertx.vertx().apply {
+    private val client: WebClient = WebClient.create(vertx)
+
+    init {
         DatabindCodec.mapper().registerModule(KotlinModule())
     }
-
-    private val client: WebClient = WebClient.create(vertx)
 
     override fun consume(streamId: String, dataQuery: DataQuery): Multi<Piece> {
         val stream = UnicastProcessor.create<Piece>()
@@ -35,6 +36,7 @@ class DdcConsumer(
             .`as`(BodyCodec.json(ApplicationTopology::class.java))
             .send()
             .onSuccess {
+                //TODO parallelism level should be configurable
                 it.body().partitions.stream().parallel().forEach { partition ->
                     val node = partition.master.nodeHttpAddress
                     val parser = JsonParser.newParser().objectValueMode().handler { event ->
