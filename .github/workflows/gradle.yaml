@@ -1,0 +1,30 @@
+name: CI-gradle-build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the code
+        uses: actions/checkout@master
+      - name: Setup Java
+        uses: actions/setup-java@v1
+        with:
+          java-version: '11'
+      - name: Cache build .gradle dir
+        uses: actions/cache@v2
+        with:
+          path: |
+            ~/.gradle
+            .gradle
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/build.gradle.kts') }}
+      - name: Gradle Build
+        run: ./gradlew build
+      - name: codecov
+        run: bash <(curl -s https://codecov.io/bash)
