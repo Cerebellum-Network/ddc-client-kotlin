@@ -9,6 +9,7 @@ plugins {
 group = "com.github.cerebellum-network"
 
 repositories {
+    mavenLocal()
     mavenCentral()
 }
 
