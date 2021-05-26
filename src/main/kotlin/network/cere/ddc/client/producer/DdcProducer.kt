@@ -35,8 +35,6 @@ class DdcProducer(
 
     private val appTopology: AtomicReference<AppTopology> = AtomicReference()
 
-    private val updateAppTopologyExecutor = Executors.newSingleThreadExecutor()
-
     private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")))
 
     init {
@@ -108,7 +106,7 @@ class DdcProducer(
 
             res.body()
         }.onFailure().retry().atMost(config.bootstrapNodes.size.toLong())
-            .runSubscriptionOn(updateAppTopologyExecutor)
+            .runSubscriptionOn { Thread(it).start() }
             .await().indefinitely()
     }
 
