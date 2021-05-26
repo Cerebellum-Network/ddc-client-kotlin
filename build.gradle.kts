@@ -4,6 +4,8 @@ plugins {
     kotlin("jvm") version "1.4.32"
 
     id("com.avast.gradle.docker-compose") version "0.14.3"
+
+    maven
 }
 
 group = "com.github.cerebellum-network"
