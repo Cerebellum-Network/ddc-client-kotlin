@@ -19,7 +19,8 @@ dependencies {
     implementation("io.vertx:vertx-web-client:$vertxVersion")
 
     // Smallrye
-    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:1.5.0")
+    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:2.5.1")
+    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-web-client:2.5.1")
 
     // Crypto
     implementation("com.google.crypto.tink:tink:1.5.0")

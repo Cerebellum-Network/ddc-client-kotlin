@@ -54,8 +54,8 @@ internal class DdcProducerTest {
         val piece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\"}")
 
         //when
-        testSubject.send(piece1)
-        testSubject.send(piece2)
+        testSubject.send(piece1).await().indefinitely()
+        testSubject.send(piece2).await().indefinitely()
 
         val expectedPieces = setOf(
             """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"{\"event_type\":\"first event\"}"}""",
@@ -103,12 +103,12 @@ internal class DdcProducerTest {
         val piece6 = Piece("6", appPubKey, "user_6", piece6Timestamp, "6".repeat(200))
 
         //when
-        testSubject.send(piece1)
-        testSubject.send(piece2)
-        testSubject.send(piece3)
-        testSubject.send(piece4)
-        testSubject.send(piece5)
-        testSubject.send(piece6)
+        testSubject.send(piece1).await().indefinitely()
+        testSubject.send(piece2).await().indefinitely()
+        testSubject.send(piece3).await().indefinitely()
+        testSubject.send(piece4).await().indefinitely()
+        testSubject.send(piece5).await().indefinitely()
+        testSubject.send(piece6).await().indefinitely()
 
         val expectedPieces = mutableSetOf(
             """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"${"1".repeat(200)}"}""",
@@ -128,7 +128,7 @@ internal class DdcProducerTest {
         //when next piece triggers partition scaling
         val piece7Timestamp = Instant.parse("2021-01-01T00:06:00.000Z")
         val piece7 = Piece("7", appPubKey, "user_7", piece7Timestamp, "7".repeat(200))
-        testSubject.send(piece7)
+        testSubject.send(piece7).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 
@@ -140,7 +140,7 @@ internal class DdcProducerTest {
         //when
         val piece8Timestamp = Instant.parse("2021-01-01T00:07:00.000Z")
         val piece8 = Piece("8", appPubKey, "user_8", piece8Timestamp, "8".repeat(200))
-        testSubject.send(piece8)
+        testSubject.send(piece8).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 
@@ -152,7 +152,7 @@ internal class DdcProducerTest {
         //when
         val piece9Timestamp = Instant.parse("2021-01-01T00:08:00.000Z")
         val piece9 = Piece("9", appPubKey, "user_9", piece9Timestamp, "9".repeat(200))
-        testSubject.send(piece9)
+        testSubject.send(piece9).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 

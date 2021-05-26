@@ -8,5 +8,6 @@ data class Piece(
     val userPubKey: String,
     val timestamp: Instant,
     val data: String,
+
     var signature: String = ""
 )

@@ -5,10 +5,10 @@ import com.google.crypto.tink.subtle.Ed25519Sign
 import com.google.crypto.tink.subtle.Hex
 import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Uni
-import io.vertx.core.Vertx
 import io.vertx.core.json.jackson.DatabindCodec
-import io.vertx.ext.web.client.WebClient
-import io.vertx.ext.web.codec.BodyCodec
+import io.vertx.mutiny.core.Vertx
+import io.vertx.mutiny.ext.web.client.WebClient
+import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.producer.exception.InsufficientNetworkCapacityException
 import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
@@ -16,6 +16,7 @@ import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
 import java.util.*
+import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.CRC32
 
@@ -34,6 +35,8 @@ class DdcProducer(
 
     private val appTopology: AtomicReference<AppTopology> = AtomicReference()
 
+    private val updateAppTopologyExecutor = Executors.newSingleThreadExecutor()
+
     private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")))
 
     init {
@@ -42,51 +45,45 @@ class DdcProducer(
         updateAppTopology()
     }
 
-    override fun send(piece: Piece) {
+    override fun send(piece: Piece): Uni<SendPieceResponse> {
         sign(piece)
 
         val ringToken = CRC32().apply { update(piece.userPubKey.toByteArray()) }.value
-
-        Uni.createFrom().item {
-            val targetNode =
-                appTopology.get().partitions.reversed().first { it.ringToken <= ringToken }.master.nodeHttpAddress
-            client.postAbs("$targetNode$API_PREFIX/pieces").sendJson(piece).toCompletionStage().toCompletableFuture()
-                .join()
-        }
-            .onItem().invoke { res ->
-                if (res.statusCode() == CREATED.code()) {
-                    return@invoke
+        val targetNode =
+            appTopology.get().partitions.reversed().first { it.ringToken <= ringToken }.master.nodeHttpAddress
+        return client.postAbs("$targetNode$API_PREFIX/pieces").sendJson(piece)
+            .onItem().transform { res ->
+                return@transform when (res.statusCode()) {
+                    CREATED.code() -> res.bodyAsJson(SendPieceResponse::class.java)
+                    CONFLICT.code() -> {
+                        log.warn("Duplicate message with id ${piece.id}. Skipping.")
+                        SendPieceResponse("")
+                    }
+                    MISDIRECTED_REQUEST.code() -> {
+                        log.warn("Invalid local network topology")
+                        updateAppTopology()
+                        throw InvalidAppTopologyException()
+                    }
+                    INSUFFICIENT_STORAGE.code() -> {
+                        log.warn("Insufficient network capacity")
+                        updateAppTopology()
+                        throw InsufficientNetworkCapacityException()
+                    }
+                    INSUFFICIENT_STORAGE.code() -> {
+                        log.warn("Service unavailable (body=${res.bodyAsString()})")
+                        throw ServiceUnavailableException()
+                    }
+                    else -> {
+                        log.warn("Unknown exception (statusCode=${res.statusCode()})")
+                        throw RuntimeException(res.bodyAsString())
+                    }
                 }
-
-                if (res.statusCode() == CONFLICT.code()) {
-                    log.warn("Duplicate message with id ${piece.id}. Skipping.")
-                }
-
-                if (res.statusCode() == MISDIRECTED_REQUEST.code()) {
-                    log.warn("Invalid local network topology")
-                    updateAppTopology()
-                    throw InvalidAppTopologyException()
-                }
-
-                if (res.statusCode() == INSUFFICIENT_STORAGE.code()) {
-                    log.warn("Insufficient network capacity")
-                    updateAppTopology()
-                    throw InsufficientNetworkCapacityException()
-                }
-
-                if (res.statusCode() == SERVICE_UNAVAILABLE.code()) {
-                    log.warn("Service unavailable (body=${res.bodyAsString()})")
-                    throw ServiceUnavailableException()
-                }
-
-                log.warn("Unknown exception (statusCode=${res.statusCode()})")
-                throw RuntimeException(res.bodyAsString())
             }
             .onFailure(InvalidAppTopologyException::class.java).retry().atMost(1)
-            .onFailure(InsufficientNetworkCapacityException::class.java).retry().withBackOff(config.retryBackoff)
+            .onFailure(InsufficientNetworkCapacityException::class.java).retry()
+            .withBackOff(config.retryBackoff)
             .indefinitely()
             .onFailure().retry().withBackOff(config.retryBackoff).atMost(config.retries.toLong())
-            .await().indefinitely()
     }
 
     private fun updateAppTopology() {
@@ -99,18 +96,20 @@ class DdcProducer(
 
     private fun getAppTopology(appPubKey: String): AppTopology {
         var retryAttempt = 0
-        return Uni.createFrom().item {
-            val res = client.getAbs("${config.bootstrapNodes[retryAttempt++]}${API_PREFIX}/apps/${appPubKey}/topology")
+        return Uni.createFrom().deferred {
+            client.getAbs("${config.bootstrapNodes[retryAttempt++]}${API_PREFIX}/apps/${appPubKey}/topology")
                 .`as`(BodyCodec.json(AppTopology::class.java))
                 .send()
-                .toCompletionStage().toCompletableFuture().join()
+        }.onItem().transform { res ->
             if (res.statusCode() != OK.code()) {
                 log.error("Can't load app topology (statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
                 throw RuntimeException("Can't load app topology")
             }
 
             res.body()
-        }.onFailure().retry().atMost(config.bootstrapNodes.size.toLong()).await().indefinitely()
+        }.onFailure().retry().atMost(config.bootstrapNodes.size.toLong())
+            .runSubscriptionOn(updateAppTopologyExecutor)
+            .await().indefinitely()
     }
 
     private fun sign(piece: Piece) {
