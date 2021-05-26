@@ -22,10 +22,11 @@ dependencies {
     // Smallrye
     implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:1.5.0")
 
+    // Crypto
+    implementation("com.google.crypto.tink:tink:1.5.0")
+
     // Log4j
-    implementation("org.apache.logging.log4j:log4j-api:$log4jVersion")
-    implementation("org.apache.logging.log4j:log4j-core:$log4jVersion")
-    implementation("org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion")
+    implementation("ch.qos.logback:logback-classic:1.1.7")
 
     // JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.8")
