@@ -13,7 +13,6 @@ repositories {
 }
 
 val vertxVersion = "4.0.3"
-val log4jVersion = "2.7"
 dependencies {
     // Vert.x
     implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
@@ -25,7 +24,7 @@ dependencies {
     // Crypto
     implementation("com.google.crypto.tink:tink:1.5.0")
 
-    // Log4j
+    // Logback
     implementation("ch.qos.logback:logback-classic:1.1.7")
 
     // JSON
