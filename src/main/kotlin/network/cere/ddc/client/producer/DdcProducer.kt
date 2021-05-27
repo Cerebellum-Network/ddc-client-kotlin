@@ -8,8 +8,8 @@ import io.smallrye.mutiny.Uni
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.ext.web.client.WebClient
-import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
+import network.cere.ddc.client.common.MetadataManager
 import network.cere.ddc.client.producer.exception.InsufficientNetworkCapacityException
 import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
@@ -24,13 +24,11 @@ class DdcProducer(
     vertx: Vertx = Vertx.vertx(),
 ) : Producer {
 
-    private companion object {
-        private const val API_PREFIX = "/api/rest"
-    }
-
     private val log = LoggerFactory.getLogger(javaClass)
 
     private val client: WebClient = WebClient.create(vertx)
+
+    private val metadataManager = MetadataManager(config.bootstrapNodes, client)
 
     private val appTopology: AtomicReference<AppTopology> = AtomicReference()
 
@@ -48,7 +46,7 @@ class DdcProducer(
         val ringToken = CRC32().apply { update(piece.userPubKey.toByteArray()) }.value
         val targetNode =
             appTopology.get().partitions.reversed().first { it.ringToken <= ringToken }.master.nodeHttpAddress
-        return client.postAbs("$targetNode$API_PREFIX/pieces").sendJson(piece)
+        return client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
             .onItem().transform { res ->
                 return@transform when (res.statusCode()) {
                     CREATED.code() -> res.bodyAsJson(SendPieceResponse::class.java)
@@ -85,28 +83,10 @@ class DdcProducer(
 
     private fun updateAppTopology() {
         log.info("Updating app topology")
-        val topology = getAppTopology(config.appPubKey)
+        val topology = metadataManager.getAppTopology(config.appPubKey)
 
         log.debug("Topology received:\n${topology}")
         appTopology.set(topology)
-    }
-
-    private fun getAppTopology(appPubKey: String): AppTopology {
-        var retryAttempt = 0
-        return Uni.createFrom().deferred {
-            client.getAbs("${config.bootstrapNodes[retryAttempt++]}${API_PREFIX}/apps/${appPubKey}/topology")
-                .`as`(BodyCodec.json(AppTopology::class.java))
-                .send()
-        }.onItem().transform { res ->
-            if (res.statusCode() != OK.code()) {
-                log.error("Can't load app topology (statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
-                throw RuntimeException("Can't load app topology")
-            }
-
-            res.body()
-        }.onFailure().retry().atMost(config.bootstrapNodes.size.toLong())
-            .runSubscriptionOn { Thread(it).start() }
-            .await().indefinitely()
     }
 
     private fun sign(piece: Piece) {

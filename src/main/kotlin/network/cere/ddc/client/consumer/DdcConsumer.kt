@@ -1,7 +1,6 @@
 package network.cere.ddc.client.consumer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import io.netty.handler.codec.http.HttpResponseStatus.OK
 import io.smallrye.mutiny.Multi
 import io.vertx.core.json.jackson.DatabindCodec
 import org.slf4j.LoggerFactory
@@ -17,7 +16,7 @@ import io.vertx.mutiny.core.parsetools.JsonParser
 import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.PartitionTopology
-import java.lang.RuntimeException
+import network.cere.ddc.client.common.MetadataManager
 import java.time.Duration
 import java.time.Instant
 import java.util.*
@@ -31,15 +30,13 @@ class DdcConsumer(
     private val checkpointer: Checkpointer = InMemoryCheckpointer()
 ) : Consumer {
 
-    private companion object {
-        private const val API_PREFIX = "/api/rest"
-    }
-
     private val partitionPollInterval = Duration.ofMillis(config.partitionPollIntervalMs.toLong())
 
     private val log = LoggerFactory.getLogger(javaClass)
 
     private val client: WebClient = WebClient.create(vertx)
+
+    private val metadataManager: MetadataManager = MetadataManager(config.bootstrapNodes, client)
 
     // <streamId + partitionId> to subscription
     private val partitionSubscriptions = HashMap<String, Cancellable>()
@@ -55,7 +52,7 @@ class DdcConsumer(
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
 
-        appTopology = getAppTopology(config.appPubKey)
+        appTopology = metadataManager.getAppTopology(config.appPubKey)
 
         Timer("updateAppTopology").schedule(0, config.updateAppTopologyIntervalMs.toLong()) { updateAppTopology() }
 
@@ -89,7 +86,7 @@ class DdcConsumer(
         val stream = Stream(streamId, UnicastProcessor.create(), dataQuery)
         streams[streamId] = stream
 
-        getAppTopology(config.appPubKey).partitions.forEach { partitionTopology ->
+        metadataManager.getAppTopology(config.appPubKey).partitions.forEach { partitionTopology ->
             consumePartition(stream, partitionTopology)
         }
         return stream
@@ -111,7 +108,7 @@ class DdcConsumer(
         val pollPartition = Uni.createFrom().item {
             val node = partitionTopology.master.nodeHttpAddress
             var url =
-                "$node$API_PREFIX/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
+                "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
 
             if (checkpointValue != null) {
                 url += "&from=$checkpointValue&to=" + Instant.now().toString()
@@ -158,7 +155,7 @@ class DdcConsumer(
     private fun updateAppTopology() {
         val partitionIds = appTopology.partitions.map { it.partitionId }
 
-        val updatedAppTopology = getAppTopology(config.appPubKey)
+        val updatedAppTopology = metadataManager.getAppTopology(config.appPubKey)
         val newPartitions = updatedAppTopology.partitions.filterNot { partitionIds.contains(it.partitionId) }
 
         if (newPartitions.isNotEmpty()) {
@@ -170,24 +167,6 @@ class DdcConsumer(
             }
         }
         appTopology = updatedAppTopology
-    }
-
-    private fun getAppTopology(appPubKey: String): AppTopology {
-        var retryAttempt = 0
-        return Uni.createFrom().deferred {
-            client.getAbs("${config.bootstrapNodes[retryAttempt++]}${API_PREFIX}/apps/${appPubKey}/topology")
-                .`as`(BodyCodec.json(AppTopology::class.java))
-                .send()
-        }.onItem().transform { res ->
-            if (res.statusCode() != OK.code()) {
-                log.error("Can't load app topology (statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
-                throw RuntimeException("Can't load app topology")
-            }
-
-            res.body()
-        }.onFailure().retry().atMost(config.bootstrapNodes.size.toLong())
-            .runSubscriptionOn { Thread(it).start() }
-            .await().indefinitely()
     }
 
     private class Stream(
