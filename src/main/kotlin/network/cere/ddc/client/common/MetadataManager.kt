@@ -17,7 +17,7 @@ class MetadataManager(
 
     fun getAppTopology(appPubKey: String): AppTopology {
         var retryAttempt = 0
-        return Uni.createFrom().deferred {
+        var getAppTopology = Uni.createFrom().deferred {
             client.getAbs("${bootstrapNodes[retryAttempt++]}/api/rest/apps/${appPubKey}/topology")
                 .`as`(BodyCodec.json(AppTopology::class.java))
                 .send()
@@ -28,8 +28,12 @@ class MetadataManager(
             }
 
             res.body()
-        }.onFailure().retry().atMost(bootstrapNodes.size.toLong())
-            .runSubscriptionOn { Thread(it).start() }
-            .await().indefinitely()
+        }
+
+        if (bootstrapNodes.size.toLong() > 1) {
+            getAppTopology = getAppTopology.onFailure().retry().atMost(bootstrapNodes.size.toLong() - 1)
+        }
+
+        return getAppTopology.runSubscriptionOn { Thread(it).start() }.await().indefinitely()
     }
 }
