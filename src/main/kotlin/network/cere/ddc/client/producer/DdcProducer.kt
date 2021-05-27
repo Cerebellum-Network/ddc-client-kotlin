@@ -16,7 +16,6 @@ import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
 import java.util.*
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicReference
 import java.util.zip.CRC32
 
@@ -67,7 +66,7 @@ class DdcProducer(
                         updateAppTopology()
                         throw InsufficientNetworkCapacityException()
                     }
-                    INSUFFICIENT_STORAGE.code() -> {
+                    SERVICE_UNAVAILABLE.code() -> {
                         log.warn("Service unavailable (body=${res.bodyAsString()})")
                         throw ServiceUnavailableException()
                     }

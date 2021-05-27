@@ -3,11 +3,7 @@ package network.cere.ddc.client.consumer
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.netty.handler.codec.http.HttpResponseStatus.OK
 import io.smallrye.mutiny.Multi
-import io.vertx.ext.web.client.WebClient
-import io.vertx.core.Vertx
 import io.vertx.core.json.jackson.DatabindCodec
-import io.vertx.core.parsetools.JsonParser
-import io.vertx.ext.web.codec.BodyCodec
 import org.slf4j.LoggerFactory
 import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
 import network.cere.ddc.client.api.AppTopology
@@ -16,6 +12,10 @@ import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 
 import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.subscription.Cancellable
+import io.vertx.mutiny.core.Vertx
+import io.vertx.mutiny.core.parsetools.JsonParser
+import io.vertx.mutiny.ext.web.client.WebClient
+import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.PartitionTopology
 import java.lang.RuntimeException
 import java.time.Duration
@@ -133,15 +133,15 @@ class DdcConsumer(
             client.getAbs(url)
                 .`as`(BodyCodec.jsonStream(parser))
                 .send()
-                .onSuccess {
+                .onItem().invoke { _ ->
                     log.debug("Partition successfully polled (url=$url, checkpointValue=$checkpointValue)")
                     if (checkpointValue != null) {
                         uncommittedCheckpoints[checkpointKey] = checkpointValue!!
                     }
                 }
-                .onFailure {
-                    log.error("Error on streaming data from DDC from URL $url", it)
-                }.toCompletionStage().toCompletableFuture().join()
+                .onFailure().invoke { e ->
+                    log.error("Error on streaming data from DDC from URL $url", e)
+                }.await().indefinitely()
         }
 
         val pollPartitionIndefinitelyWithInterval = pollPartition.onItem()
@@ -174,24 +174,20 @@ class DdcConsumer(
 
     private fun getAppTopology(appPubKey: String): AppTopology {
         var retryAttempt = 0
-        var getAppTopology = Uni.createFrom().item {
-            val res = client.getAbs("${config.bootstrapNodes[retryAttempt++]}$API_PREFIX/apps/${appPubKey}/topology")
+        return Uni.createFrom().deferred {
+            client.getAbs("${config.bootstrapNodes[retryAttempt++]}${API_PREFIX}/apps/${appPubKey}/topology")
                 .`as`(BodyCodec.json(AppTopology::class.java))
                 .send()
-                .toCompletionStage().toCompletableFuture().join()
+        }.onItem().transform { res ->
             if (res.statusCode() != OK.code()) {
                 log.error("Can't load app topology (statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
                 throw RuntimeException("Can't load app topology")
             }
 
             res.body()
-        }
-
-        if (config.bootstrapNodes.size.toLong() > 1) {
-            getAppTopology = getAppTopology.onFailure().retry().atMost(config.bootstrapNodes.size.toLong() - 1)
-        }
-
-        return getAppTopology.await().indefinitely()
+        }.onFailure().retry().atMost(config.bootstrapNodes.size.toLong())
+            .runSubscriptionOn { Thread(it).start() }
+            .await().indefinitely()
     }
 
     private class Stream(
