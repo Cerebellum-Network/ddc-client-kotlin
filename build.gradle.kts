@@ -13,19 +13,20 @@ repositories {
 }
 
 val vertxVersion = "4.0.3"
-val log4jVersion = "2.7"
 dependencies {
     // Vert.x
     implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
     implementation("io.vertx:vertx-web-client:$vertxVersion")
 
     // Smallrye
-    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:1.5.0")
+    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:2.5.1")
+    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-web-client:2.5.1")
 
-    // Log4j
-    implementation("org.apache.logging.log4j:log4j-api:$log4jVersion")
-    implementation("org.apache.logging.log4j:log4j-core:$log4jVersion")
-    implementation("org.apache.logging.log4j:log4j-slf4j-impl:$log4jVersion")
+    // Crypto
+    implementation("com.google.crypto.tink:tink:1.5.0")
+
+    // Logback
+    implementation("ch.qos.logback:logback-classic:1.1.7")
 
     // JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.8")
