@@ -147,7 +147,10 @@ class DdcConsumer(
             .repeat().indefinitely()
 
         val partitionSubscription = pollPartitionIndefinitelyWithInterval.subscribe()
-            .with { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") }
+            .with(
+                { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
+                { e -> log.error("Partition poll failure", e) }
+            )
 
         partitionSubscriptions[stream.id + partitionTopology.partitionId] = partitionSubscription
     }
