@@ -86,7 +86,7 @@ class DdcConsumer(
         val stream = Stream(streamId, UnicastProcessor.create(), dataQuery)
         streams[streamId] = stream
 
-        metadataManager.getAppTopology(config.appPubKey).partitions.forEach { partitionTopology ->
+        metadataManager.getAppTopology(config.appPubKey).partitions!!.forEach { partitionTopology ->
             consumePartition(stream, partitionTopology)
         }
         return stream
@@ -106,7 +106,7 @@ class DdcConsumer(
         }
 
         val pollPartition = Uni.createFrom().item {
-            val node = partitionTopology.master.nodeHttpAddress
+            val node = partitionTopology.master!!.nodeHttpAddress
             var url =
                 "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
 
@@ -121,8 +121,8 @@ class DdcConsumer(
             val parser = JsonParser.newParser().objectValueMode().handler { event ->
                 val piece = event.mapTo(Piece::class.java)
                 //TODO introduce lastToken to DDC node?
-                checkpointValue = piece.timestamp.plusMillis(1).toString()
-                val consumerRecord = ConsumerRecord(piece, partitionTopology.partitionId, checkpointValue!!)
+                checkpointValue = piece.timestamp!!.plusMillis(1).toString()
+                val consumerRecord = ConsumerRecord(piece, partitionTopology.partitionId!!, checkpointValue!!)
                 stream.processor.onNext(consumerRecord)
             }
 
@@ -156,16 +156,16 @@ class DdcConsumer(
     }
 
     private fun updateAppTopology() {
-        val partitionIds = appTopology.partitions.map { it.partitionId }
+        val partitionIds = appTopology.partitions!!.map { it.partitionId }
 
         val updatedAppTopology = metadataManager.getAppTopology(config.appPubKey)
-        val newPartitions = updatedAppTopology.partitions.filterNot { partitionIds.contains(it.partitionId) }
+        val newPartitions = updatedAppTopology.partitions!!.filterNot { partitionIds.contains(it.partitionId) }
 
         if (newPartitions.isNotEmpty()) {
             log.debug("${newPartitions.size} new partitions found")
             streams.values.forEach { stream ->
                 newPartitions.forEach { partitionTopology ->
-                    consumePartition(stream, partitionTopology, partitionTopology.createdAt)
+                    consumePartition(stream, partitionTopology, partitionTopology.createdAt!!)
                 }
             }
         }
