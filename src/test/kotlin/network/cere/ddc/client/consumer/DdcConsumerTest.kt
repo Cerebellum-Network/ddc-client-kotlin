@@ -644,11 +644,11 @@ internal class DdcConsumerTest {
             .toCompletableFuture()
             .get()
             .body()
-        topology.partitions
+        topology.partitions!!
             .asSequence()
             .sortedByDescending { it.ringToken }
-            .first { it.ringToken <= ringToken }
-            .master
+            .first { it.ringToken!! <= ringToken }
+            .master!!
             .nodeHttpAddress
             .let { "$it$API_PREFIX/pieces" }
             .let(client::postAbs)

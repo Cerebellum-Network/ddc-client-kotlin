@@ -187,8 +187,8 @@ internal class DdcProducerTest {
             .body()
 
         val pieces = CopyOnWriteArrayList<String>()
-        topology.partitions.forEach { partition ->
-            client.getAbs("${partition.master.nodeHttpAddress}${API_PREFIX}/pieces?appPubKey=$appPubKey&partitionId=${partition.partitionId}")
+        topology.partitions!!.forEach { partition ->
+            client.getAbs("${partition.master!!.nodeHttpAddress}${API_PREFIX}/pieces?appPubKey=$appPubKey&partitionId=${partition.partitionId}")
                 .`as`(BodyCodec.jsonStream(JsonParser.newParser().objectValueMode().handler { event ->
                     pieces.add(event.objectValue().encode())
                 }))
