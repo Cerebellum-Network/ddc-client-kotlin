@@ -4,5 +4,5 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 data class SendPieceResponse(
     @field:JsonProperty("cid")
-    val cid: String? = null
+    var cid: String? = null
 )
