@@ -5,17 +5,17 @@ import java.time.Instant
 
 data class Piece(
     @field:JsonProperty("id")
-    val id: String? = null,
+    var id: String? = null,
 
     @field:JsonProperty("appPubKey")
-    val appPubKey: String? = null,
+    var appPubKey: String? = null,
 
     @field:JsonProperty("userPubKey")
-    val userPubKey: String? = null,
+    var userPubKey: String? = null,
 
     @field:JsonProperty("timestamp")
-    val timestamp: Instant? = null,
+    var timestamp: Instant? = null,
 
     @field:JsonProperty("data")
-    val data: String? = null
+    var data: String? = null
 )

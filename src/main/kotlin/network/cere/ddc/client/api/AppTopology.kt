@@ -4,36 +4,36 @@ import com.fasterxml.jackson.annotation.JsonProperty
 
 data class AppTopology(
     @field:JsonProperty("appPubKey")
-    val appPubKey: String? = null,
+    var appPubKey: String? = null,
 
     @field:JsonProperty("partitions")
-    val partitions: List<PartitionTopology>? = null
+    var partitions: List<PartitionTopology>? = null
 )
 
 data class PartitionTopology(
     @field:JsonProperty("partitionId")
-    val partitionId: String? = null,
+    var partitionId: String? = null,
 
     @field:JsonProperty("ringToken")
-    val ringToken: Long? = null,
+    var ringToken: Long? = null,
 
     @field:JsonProperty("master")
-    val master: NodeMetadata? = null,
+    var master: NodeMetadata? = null,
 
     @field:JsonProperty("replicas")
-    val replicas: Set<NodeMetadata>? = null,
+    var replicas: Set<NodeMetadata>? = null,
 
     @field:JsonProperty("createdAt")
-    val createdAt: String? = null,
+    var createdAt: String? = null,
 
     @field:JsonProperty("updatedAt")
-    val updatedAt: String? = null
+    var updatedAt: String? = null
 )
 
 data class NodeMetadata(
     @field:JsonProperty("nodeId")
-    val nodeId: String? = null,
+    var nodeId: String? = null,
 
     @field:JsonProperty("nodeHttpAddress")
-    val nodeHttpAddress: String? = null
+    var nodeHttpAddress: String? = null
 )
