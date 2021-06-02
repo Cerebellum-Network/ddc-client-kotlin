@@ -43,9 +43,9 @@ class DdcProducer(
     override fun send(piece: Piece): Uni<SendPieceResponse> {
         sign(piece)
 
-        val ringToken = CRC32().apply { update(piece.userPubKey.toByteArray()) }.value
+        val ringToken = CRC32().apply { update(piece.userPubKey!!.toByteArray()) }.value
         val targetNode =
-            appTopology.get().partitions.reversed().first { it.ringToken <= ringToken }.master.nodeHttpAddress
+            appTopology.get().partitions!!.reversed().first { it.ringToken!! <= ringToken }.master!!.nodeHttpAddress
         return client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
             .onItem().transform { res ->
                 return@transform when (res.statusCode()) {
