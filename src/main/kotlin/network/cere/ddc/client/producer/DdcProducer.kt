@@ -32,7 +32,7 @@ class DdcProducer(
 
     private val appTopology: AtomicReference<AppTopology> = AtomicReference()
 
-    private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")))
+    private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")).sliceArray(0 until 32))
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
