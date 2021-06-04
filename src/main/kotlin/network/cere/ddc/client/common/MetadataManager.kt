@@ -9,9 +9,13 @@ import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
 
 class MetadataManager(
-    private val bootstrapNodes: List<String>,
+    private var bootstrapNodes: List<String>,
     private val client: WebClient
 ) {
+
+    init {
+        bootstrapNodes = bootstrapNodes.map { it.removeSuffix("/") }
+    }
 
     private val log = LoggerFactory.getLogger(javaClass)
 
