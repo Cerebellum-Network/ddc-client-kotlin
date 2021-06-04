@@ -28,8 +28,8 @@ dependencies {
     // Crypto
     implementation("com.google.crypto.tink:tink:1.5.0")
 
-    // Logback
-    implementation("ch.qos.logback:logback-classic:1.1.7")
+    // Slf4j
+    implementation("org.slf4j:slf4j-api:1.7.30")
 
     // JSON
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.8")
