@@ -110,8 +110,13 @@ class DdcConsumer(
             var url =
                 "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
 
+            //TODO handle end of stream when 'to' specified
             if (checkpointValue != null) {
                 url += "&from=$checkpointValue&to=" + Instant.now().toString()
+            } else {
+                if (stream.dataQuery.from.isNotEmpty() && stream.dataQuery.to.isNotEmpty()) {
+                    url += "&from=${stream.dataQuery.from}&to=${stream.dataQuery.to}"
+                }
             }
 
             if (stream.dataQuery.fields.isNotEmpty()) {
