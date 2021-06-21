@@ -7,6 +7,7 @@ import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
+import java.util.zip.CRC32
 
 class MetadataManager(
     private var bootstrapNodes: List<String>,
@@ -39,5 +40,10 @@ class MetadataManager(
         }
 
         return getAppTopology.runSubscriptionOn { Thread(it).start() }.await().indefinitely()
+    }
+
+    fun getTargetNode(userPubKey: String, appTopology: AppTopology): String? {
+        val ringToken = CRC32().apply { update(userPubKey.toByteArray()) }.value
+        return appTopology.partitions!!.reversed().first { it.ringToken!! <= ringToken }.master!!.nodeHttpAddress
     }
 }

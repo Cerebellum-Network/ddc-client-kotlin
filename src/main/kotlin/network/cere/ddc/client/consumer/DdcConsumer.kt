@@ -70,9 +70,7 @@ class DdcConsumer(
     }
 
     override fun getByCid(userPubKey: String, cid: String): Uni<Piece> {
-        val ringToken = CRC32().apply { update(userPubKey.toByteArray()) }.value
-        val targetNode =
-            appTopology.partitions!!.reversed().first { it.ringToken!! <= ringToken }.master!!.nodeHttpAddress
+        val targetNode = metadataManager.getTargetNode(userPubKey, appTopology)
         return client.getAbs("$targetNode/api/rest/ipfs/pieces/$cid").send()
             .onItem().transform { res ->
                 return@transform when (res.statusCode()) {
