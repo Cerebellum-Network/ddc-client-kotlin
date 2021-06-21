@@ -1,9 +1,12 @@
 package network.cere.ddc.client.consumer
 
 import io.smallrye.mutiny.Multi
+import io.smallrye.mutiny.Uni
 
 interface Consumer : AutoCloseable {
     fun consume(streamId: String, dataQuery: DataQuery): Multi<ConsumerRecord>
+
+    fun getByCid(userPubKey: String, cid: String): Uni<Piece>
 
     /*
     If enableAutoCommit is set to false - resolve checkpoint should be triggered by client when piece was successfully

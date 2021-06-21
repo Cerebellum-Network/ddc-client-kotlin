@@ -1,6 +1,7 @@
 package network.cere.ddc.client.consumer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Multi
 import io.vertx.core.json.jackson.DatabindCodec
 import org.slf4j.LoggerFactory
@@ -17,10 +18,13 @@ import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
+import network.cere.ddc.client.producer.exception.ServiceUnavailableException
+import java.lang.RuntimeException
 import java.time.Duration
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.Executors
+import java.util.zip.CRC32
 import kotlin.collections.HashMap
 import kotlin.concurrent.schedule
 
@@ -64,6 +68,31 @@ class DdcConsumer(
     override fun consume(streamId: String, dataQuery: DataQuery): Multi<ConsumerRecord> {
         return streams.getOrPut(streamId, { initializeStream(streamId, dataQuery) }).processor
     }
+
+    override fun getByCid(userPubKey: String, cid: String): Uni<Piece> {
+        val ringToken = CRC32().apply { update(userPubKey.toByteArray()) }.value
+        val targetNode =
+            appTopology.partitions!!.reversed().first { it.ringToken!! <= ringToken }.master!!.nodeHttpAddress
+        return client.getAbs("$targetNode/api/rest/ipfs/pieces/$cid").send()
+            .onItem().transform { res ->
+                return@transform when (res.statusCode()) {
+                    OK.code() -> res.bodyAsJson(Piece::class.java)
+                    INTERNAL_SERVER_ERROR.code() -> {
+                        log.warn("Internal server error (body=${res.bodyAsString()})")
+                        throw RuntimeException(res.bodyAsString())
+                    }
+                    SERVICE_UNAVAILABLE.code() -> {
+                        log.warn("Service unavailable (body=${res.bodyAsString()})")
+                        throw ServiceUnavailableException()
+                    }
+                    else -> {
+                        log.warn("Unknown exception (statusCode=${res.statusCode()})")
+                        throw RuntimeException(res.bodyAsString())
+                    }
+                }
+            }
+    }
+
 
     override fun commitCheckpoint(streamId: String, consumerRecord: ConsumerRecord) {
         val checkpointKey = "${config.appPubKey}:${consumerRecord.partitionId}:${streamId}"
