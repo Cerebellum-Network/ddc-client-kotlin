@@ -17,7 +17,6 @@ import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
 import java.util.*
 import java.util.concurrent.atomic.AtomicReference
-import java.util.zip.CRC32
 
 class DdcProducer(
     private val config: ProducerConfig,
@@ -43,7 +42,7 @@ class DdcProducer(
     override fun send(piece: Piece): Uni<SendPieceResponse> {
         sign(piece)
 
-        val targetNode = metadataManager.getTargetNode(piece.userPubKey!!, appTopology.get())
+        val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, appTopology.get())
         return client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
             .onItem().transform { res ->
                 return@transform when (res.statusCode()) {

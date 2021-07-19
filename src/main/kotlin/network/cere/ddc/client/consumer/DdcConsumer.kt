@@ -18,13 +18,11 @@ import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
-import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import java.lang.RuntimeException
 import java.time.Duration
 import java.time.Instant
 import java.util.*
 import java.util.concurrent.Executors
-import java.util.zip.CRC32
 import kotlin.collections.HashMap
 import kotlin.concurrent.schedule
 
@@ -69,28 +67,67 @@ class DdcConsumer(
         return streams.getOrPut(streamId, { initializeStream(streamId, dataQuery) }).processor
     }
 
-    override fun getByCid(userPubKey: String, cid: String): Uni<Piece> {
-        val targetNode = metadataManager.getTargetNode(userPubKey, appTopology)
-        return client.getAbs("$targetNode/api/rest/ipfs/pieces/$cid").send()
-            .onItem().transform { res ->
-                return@transform when (res.statusCode()) {
-                    OK.code() -> res.bodyAsJson(Piece::class.java)
-                    INTERNAL_SERVER_ERROR.code() -> {
-                        log.warn("Internal server error (body=${res.bodyAsString()})")
-                        throw RuntimeException(res.bodyAsString())
+    override fun getByUser(userPubKey: String): Multi<Piece> {
+        return Multi.createBy().concatenating().streams(
+            metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
+                .sortedBy { it.createdAt }
+                .map { partition ->
+                    val stream = UnicastProcessor.create<Piece>()
+                    val parser = JsonParser.newParser().objectValueMode().handler { event ->
+                        stream.onNext(event.mapTo(Piece::class.java))
                     }
-                    SERVICE_UNAVAILABLE.code() -> {
-                        log.warn("Service unavailable (body=${res.bodyAsString()})")
-                        throw ServiceUnavailableException()
-                    }
-                    else -> {
-                        log.warn("Unknown exception (statusCode=${res.statusCode()})")
-                        throw RuntimeException(res.bodyAsString())
-                    }
+
+                    val url =
+                        "${partition.master!!.nodeHttpAddress}/api/rest/pieces?userPubKey=$userPubKey&appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}"
+
+                    log.debug("Fetching user pieces (url=$url)")
+                    client.getAbs(url)
+                        .`as`(BodyCodec.jsonStream(parser))
+                        .send()
+                        .subscribe().with({ res ->
+                            if (res.statusCode() == OK.code()) {
+                                log.debug("User pieces successfully fetched (url=$url)")
+                                stream.onComplete()
+                            } else {
+                                log.debug("Failed to fetch user pieces (url=$url, statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
+                                stream.onFailure()
+                            }
+                        }, { e ->
+                            log.error("Failed to fetch user pieces (url=$url)", e)
+                        })
+                    stream
                 }
-            }
+        )
     }
 
+    override fun getByCid(userPubKey: String, cid: String): Uni<Piece> {
+        return Uni.join().first(
+            metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
+                .map { targetPartition ->
+                    client.getAbs("${targetPartition.master!!.nodeHttpAddress}/api/rest/ipfs/pieces/$cid").send()
+                        .onItem().transform { res ->
+                            return@transform when (res.statusCode()) {
+                                OK.code() -> res.bodyAsJson(Piece::class.java)
+                                NOT_FOUND.code() -> {
+                                    log.warn("Not found (body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                INTERNAL_SERVER_ERROR.code() -> {
+                                    log.warn("Internal server error (body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                SERVICE_UNAVAILABLE.code() -> {
+                                    log.warn("Service unavailable (body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                else -> {
+                                    log.warn("Unknown exception (statusCode=${res.statusCode()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                            }
+                        }
+                }).withItem()
+    }
 
     override fun commitCheckpoint(streamId: String, consumerRecord: ConsumerRecord) {
         val checkpointKey = "${config.appPubKey}:${consumerRecord.partitionId}:${streamId}"

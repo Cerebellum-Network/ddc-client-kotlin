@@ -6,6 +6,8 @@ import io.smallrye.mutiny.Uni
 interface Consumer : AutoCloseable {
     fun consume(streamId: String, dataQuery: DataQuery): Multi<ConsumerRecord>
 
+    fun getByUser(userPubKey: String): Multi<Piece>
+
     fun getByCid(userPubKey: String, cid: String): Uni<Piece>
 
     /*

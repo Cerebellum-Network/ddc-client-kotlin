@@ -17,5 +17,8 @@ data class Piece(
     var timestamp: Instant? = null,
 
     @field:JsonProperty("data")
-    var data: String? = null
+    var data: String? = null,
+
+    @field:JsonProperty("offset")
+    var offset: Long? = null
 )

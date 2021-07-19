@@ -21,7 +21,6 @@ internal class DdcProducerTest {
     private companion object {
         private const val API_PREFIX = "/api/rest"
         private const val DDC_NODE_URL = "http://localhost:8080"
-        private const val TIER_ID = "2"
     }
 
     private var vertx: Vertx = Vertx.vertx().apply {
@@ -58,8 +57,8 @@ internal class DdcProducerTest {
         testSubject.send(piece2).await().indefinitely()
 
         val expectedPieces = setOf(
-            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"{\"event_type\":\"first event\"}"}""",
-            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"{\"event_type\":\"second event\"}"}""",
+            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"{\"event_type\":\"first event\"}","offset":1}""",
+            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"{\"event_type\":\"second event\"}","offset":2}""",
         )
 
         //then
@@ -91,82 +90,76 @@ internal class DdcProducerTest {
         val piece1Timestamp = Instant.parse("2021-01-01T00:00:00.000Z")
         val piece2Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
         val piece3Timestamp = Instant.parse("2021-01-01T00:02:00.000Z")
-        val piece4Timestamp = Instant.parse("2021-01-01T00:03:00.000Z")
-        val piece5Timestamp = Instant.parse("2021-01-01T00:04:00.000Z")
-        val piece6Timestamp = Instant.parse("2021-01-01T00:05:00.000Z")
 
-        val piece1 = Piece("1", appPubKey, "user_1", piece1Timestamp, "1".repeat(200))
-        val piece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(200))
-        val piece3 = Piece("3", appPubKey, "user_3", piece3Timestamp, "3".repeat(200))
-        val piece4 = Piece("4", appPubKey, "user_4", piece4Timestamp, "4".repeat(200))
-        val piece5 = Piece("5", appPubKey, "user_5", piece5Timestamp, "5".repeat(200))
-        val piece6 = Piece("6", appPubKey, "user_6", piece6Timestamp, "6".repeat(200))
+        val piece1 = Piece("1", appPubKey, "user_1", piece1Timestamp, "1".repeat(300))
+        val piece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300))
+        val piece3 = Piece("3", appPubKey, "user_3", piece3Timestamp, "3".repeat(300))
 
         //when
         testSubject.send(piece1).await().indefinitely()
         testSubject.send(piece2).await().indefinitely()
         testSubject.send(piece3).await().indefinitely()
-        testSubject.send(piece4).await().indefinitely()
-        testSubject.send(piece5).await().indefinitely()
-        testSubject.send(piece6).await().indefinitely()
 
         val expectedPieces = mutableSetOf(
-            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"${"1".repeat(200)}"}""",
-            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"${"2".repeat(200)}"}""",
-            """{"id":"3","appPubKey":"$appPubKey","userPubKey":"user_3","timestamp":"2021-01-01T00:02:00Z","data":"${"3".repeat(200)}"}""",
-            """{"id":"4","appPubKey":"$appPubKey","userPubKey":"user_4","timestamp":"2021-01-01T00:03:00Z","data":"${"4".repeat(200)}"}""",
-            """{"id":"5","appPubKey":"$appPubKey","userPubKey":"user_5","timestamp":"2021-01-01T00:04:00Z","data":"${"5".repeat(200)}"}""",
-            """{"id":"6","appPubKey":"$appPubKey","userPubKey":"user_6","timestamp":"2021-01-01T00:05:00Z","data":"${"6".repeat(200)}"}""",
+            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"${"1".repeat(300)}","offset":1}""",
+            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"${"2".repeat(300)}","offset":2}""",
+            """{"id":"3","appPubKey":"$appPubKey","userPubKey":"user_3","timestamp":"2021-01-01T00:02:00Z","data":"${"3".repeat(300)}","offset":3}""",
         )
 
         var pieces = getPieces(appPubKey)
 
         //then
-        assertEquals(expectedPieces.size, pieces.size)
+        assertEquals(expectedPieces, pieces.toSet())
+
+        //when next piece triggers partition scaling
+        val piece4Timestamp = Instant.parse("2021-01-01T00:03:00.000Z")
+        val piece4 = Piece("4", appPubKey, "user_4", piece4Timestamp, "4".repeat(300))
+        testSubject.send(piece4).await().indefinitely()
+
+        pieces = getPieces(appPubKey)
+
+        //then
+        expectedPieces.add("""{"id":"4","appPubKey":"$appPubKey","userPubKey":"user_4","timestamp":"2021-01-01T00:03:00Z","data":"${"4".repeat(300)}","offset":1}""")
+        assertEquals(expectedPieces, pieces.toSet())
+
+        //when
+        val piece5Timestamp = Instant.parse("2021-01-01T00:04:00.000Z")
+        val piece5 = Piece("5", appPubKey, "user_5", piece5Timestamp, "5".repeat(300))
+        testSubject.send(piece5).await().indefinitely()
+
+        pieces = getPieces(appPubKey)
+
+        //then
+        expectedPieces.add("""{"id":"5","appPubKey":"$appPubKey","userPubKey":"user_5","timestamp":"2021-01-01T00:04:00Z","data":"${"5".repeat(300)}","offset":2}""")
+        assertEquals(expectedPieces, pieces.toSet())
+
+        //when
+        val piece6Timestamp = Instant.parse("2021-01-01T00:05:00.000Z")
+        val piece6 = Piece("6", appPubKey, "user_6", piece6Timestamp, "6".repeat(300))
+        testSubject.send(piece6).await().indefinitely()
+
+        pieces = getPieces(appPubKey)
+
+        //then
+        expectedPieces.add("""{"id":"6","appPubKey":"$appPubKey","userPubKey":"user_6","timestamp":"2021-01-01T00:05:00Z","data":"${"6".repeat(300)}","offset":3}""")
         assertEquals(expectedPieces, pieces.toSet())
 
         //when next piece triggers partition scaling
         val piece7Timestamp = Instant.parse("2021-01-01T00:06:00.000Z")
-        val piece7 = Piece("7", appPubKey, "user_7", piece7Timestamp, "7".repeat(200))
+        val piece7 = Piece("7", appPubKey, "user_7", piece7Timestamp, "7".repeat(300))
         testSubject.send(piece7).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"7","appPubKey":"$appPubKey","userPubKey":"user_7","timestamp":"2021-01-01T00:06:00Z","data":"${"7".repeat(200)}"}""")
-        assertEquals(expectedPieces.size, pieces.size)
-        assertEquals(expectedPieces, pieces.toSet())
-
-        //when
-        val piece8Timestamp = Instant.parse("2021-01-01T00:07:00.000Z")
-        val piece8 = Piece("8", appPubKey, "user_8", piece8Timestamp, "8".repeat(200))
-        testSubject.send(piece8).await().indefinitely()
-
-        pieces = getPieces(appPubKey)
-
-        //then
-        expectedPieces.add("""{"id":"8","appPubKey":"$appPubKey","userPubKey":"user_8","timestamp":"2021-01-01T00:07:00Z","data":"${"8".repeat(200)}"}""")
-        assertEquals(expectedPieces.size, pieces.size)
-        assertEquals(expectedPieces, pieces.toSet())
-
-        //when
-        val piece9Timestamp = Instant.parse("2021-01-01T00:08:00.000Z")
-        val piece9 = Piece("9", appPubKey, "user_9", piece9Timestamp, "9".repeat(200))
-        testSubject.send(piece9).await().indefinitely()
-
-        pieces = getPieces(appPubKey)
-
-        //then
-        expectedPieces.add("""{"id":"9","appPubKey":"$appPubKey","userPubKey":"user_9","timestamp":"2021-01-01T00:08:00Z","data":"${"9".repeat(200)}"}""")
-        assertEquals(expectedPieces.size, pieces.size)
+        expectedPieces.add("""{"id":"7","appPubKey":"$appPubKey","userPubKey":"user_7","timestamp":"2021-01-01T00:06:00Z","data":"${"7".repeat(300)}","offset":1}""")
         assertEquals(expectedPieces, pieces.toSet())
     }
 
     private fun createApp(appPubKey: String?, signer: Ed25519Sign) {
         val createAppReq = mapOf(
             "appPubKey" to appPubKey,
-            "tierId" to TIER_ID,
-            "signature" to Hex.encode(signer.sign("$appPubKey$TIER_ID".toByteArray()))
+            "signature" to Hex.encode(signer.sign("$appPubKey".toByteArray()))
         ).let(::JsonObject)
 
         client.postAbs("$DDC_NODE_URL$API_PREFIX/apps")

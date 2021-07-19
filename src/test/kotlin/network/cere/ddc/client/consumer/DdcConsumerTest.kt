@@ -23,7 +23,6 @@ internal class DdcConsumerTest {
     private companion object {
         private const val API_PREFIX = "/api/rest"
         private const val DDC_NODE_URL = "http://localhost:8080"
-        private const val TIER_ID = "2"
     }
 
     private var vertx: Vertx = Vertx.vertx().apply {
@@ -69,8 +68,8 @@ internal class DdcConsumerTest {
         )
 
         val expectedPieces = setOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}")
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}", 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}", 2)
         )
 
         //when
@@ -126,8 +125,8 @@ internal class DdcConsumerTest {
         )
 
         val expectedPieces = setOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}")
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}", 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}", 2)
         )
 
         //when
@@ -143,7 +142,8 @@ internal class DdcConsumerTest {
         //when consumer is re-created after restart/failure
         testSubject.close()
 
-        savePiece(appPubKey, signer, "user_3", "3", "{\"event_type\":\"third event\"}", piece2Timestamp)
+        val piece3Timestamp = Instant.parse("2021-01-01T00:02:00.000Z")
+        savePiece(appPubKey, signer, "user_3", "3", "{\"event_type\":\"third event\"}", piece3Timestamp)
         Thread.sleep(1000)
 
         val testSubjectAfterFailure = DdcConsumer(
@@ -166,7 +166,7 @@ internal class DdcConsumerTest {
 
         //then he continues to consume from checkpoint
         val expectedPiecesAfterFailure = setOf(
-            Piece("3", appPubKey, "user_3", piece2Timestamp, "{\"event_type\":\"third event\"}")
+            Piece("3", appPubKey, "user_3", piece3Timestamp, "{\"event_type\":\"third event\"}", 3)
         )
         assertEquals(expectedPiecesAfterFailure, piecesAfterFailure)
     }
@@ -213,8 +213,8 @@ internal class DdcConsumerTest {
         )
 
         val expectedPieces = setOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}")
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}", 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}", 2)
         )
 
         //when
@@ -253,9 +253,9 @@ internal class DdcConsumerTest {
 
         //then he consume from the beginning (checkpoint wasn't committed)
         val expectedPiecesAfterFailure = setOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}"),
-            Piece("3", appPubKey, "user_3", piece2Timestamp, "{\"event_type\":\"third event\"}")
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}", 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}", 2),
+            Piece("3", appPubKey, "user_3", piece2Timestamp, "{\"event_type\":\"third event\"}", 3)
         )
         assertEquals(expectedPiecesAfterFailure, piecesAfterFailure)
     }
@@ -302,8 +302,8 @@ internal class DdcConsumerTest {
         )
 
         val expectedPieces = setOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}")
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}", 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}", 2)
         )
 
         //when
@@ -322,7 +322,8 @@ internal class DdcConsumerTest {
         //when consumer is re-created after restart/failure
         testSubject.close()
 
-        savePiece(appPubKey, signer, "user_3", "3", "{\"event_type\":\"third event\"}", piece2Timestamp)
+        val piece3Timestamp = Instant.parse("2021-01-01T00:02:00.000Z")
+        savePiece(appPubKey, signer, "user_3", "3", "{\"event_type\":\"third event\"}", piece3Timestamp)
         Thread.sleep(1000)
 
         val testSubjectAfterFailure = DdcConsumer(
@@ -346,7 +347,7 @@ internal class DdcConsumerTest {
 
         //then he continues to consume from checkpoint (checkpoint was manually committed)
         val expectedPiecesAfterFailure = setOf(
-            Piece("3", appPubKey, "user_3", piece2Timestamp, "{\"event_type\":\"third event\"}")
+            Piece("3", appPubKey, "user_3", piece3Timestamp, "{\"event_type\":\"third event\"}", 3)
         )
         assertEquals(expectedPiecesAfterFailure, piecesAfterFailure)
     }
@@ -389,8 +390,8 @@ internal class DdcConsumerTest {
         )
 
         val expectedPieces = setOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}")
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}", 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}", 2)
         )
 
         //when
@@ -442,8 +443,8 @@ internal class DdcConsumerTest {
         )
 
         val expectedPieces = mutableSetOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}"),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}")
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\",\"location\":\"USA\"}", 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\",\"location\":\"EU\"}", 2)
         )
 
         //when
@@ -476,7 +477,8 @@ internal class DdcConsumerTest {
                 appPubKey,
                 "user_1",
                 piece3Timestamp,
-                "{\"event_type\":\"third event\",\"location\":\"Canada\"}"
+                "{\"event_type\":\"third event\",\"location\":\"Canada\"}",
+                3
             )
         )
         assertEquals(expectedPieces.size, pieces.size)
@@ -501,7 +503,8 @@ internal class DdcConsumerTest {
                 appPubKey,
                 "user_3",
                 piece4Timestamp,
-                "{\"event_type\":\"forth event\",\"location\":\"Japan\"}"
+                "{\"event_type\":\"forth event\",\"location\":\"Japan\"}",
+                4
             )
         )
         assertEquals(expectedPieces.size, pieces.size)
@@ -529,20 +532,14 @@ internal class DdcConsumerTest {
         val piece1Timestamp = Instant.now()
         val piece2Timestamp = Instant.now()
         val piece3Timestamp = Instant.now()
-        val piece4Timestamp = Instant.now()
-        val piece5Timestamp = Instant.now()
-        savePiece(appPubKey, signer, "user_1", "1", "1".repeat(200), piece1Timestamp)
-        savePiece(appPubKey, signer, "user_2", "2", "2".repeat(200), piece2Timestamp)
-        savePiece(appPubKey, signer, "user_3", "3", "3".repeat(200), piece3Timestamp)
-        savePiece(appPubKey, signer, "user_4", "4", "4".repeat(200), piece4Timestamp)
-        savePiece(appPubKey, signer, "user_5", "5", "5".repeat(200), piece5Timestamp)
+        savePiece(appPubKey, signer, "user_1", "1", "1".repeat(300), piece1Timestamp)
+        savePiece(appPubKey, signer, "user_2", "2", "2".repeat(300), piece2Timestamp)
+        savePiece(appPubKey, signer, "user_3", "3", "3".repeat(300), piece3Timestamp)
 
         val expectedPieces = mutableSetOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "1".repeat(200)),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(200)),
-            Piece("3", appPubKey, "user_3", piece3Timestamp, "3".repeat(200)),
-            Piece("4", appPubKey, "user_4", piece4Timestamp, "4".repeat(200)),
-            Piece("5", appPubKey, "user_5", piece5Timestamp, "5".repeat(200))
+            Piece("1", appPubKey, "user_1", piece1Timestamp, "1".repeat(300), 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300), 2),
+            Piece("3", appPubKey, "user_3", piece3Timestamp, "3".repeat(300), 3),
         )
 
         //when
@@ -553,57 +550,53 @@ internal class DdcConsumerTest {
         Thread.sleep(1000L)
 
         //then
-        assertEquals(expectedPieces.size, pieces.size)
+        assertEquals(expectedPieces, pieces.toSet())
+
+        //when next piece triggers partition scaling
+        savePiece(appPubKey, signer, "user_4", "4", "4".repeat(300), Instant.now())
+        Thread.sleep(1000L)
+        val piece4Timestamp = Instant.now()
+        savePiece(appPubKey, signer, "user_4", "4", "4".repeat(300), piece4Timestamp)
+        Thread.sleep(1000L)
+
+        //then
+        expectedPieces.add(Piece("4", appPubKey, "user_4", piece4Timestamp, "4".repeat(300), 1))
+        assertEquals(expectedPieces, pieces.toSet())
+
+        //when
+        val piece5Timestamp = Instant.now()
+        savePiece(appPubKey, signer, "user_5", "5", "5".repeat(300), piece5Timestamp)
+        Thread.sleep(1000L)
+
+        //then
+        expectedPieces.add(Piece("5", appPubKey, "user_5", piece5Timestamp, "5".repeat(300), 2))
         assertEquals(expectedPieces, pieces.toSet())
 
         //when
         val piece6Timestamp = Instant.now()
-        savePiece(appPubKey, signer, "user_6", "6", "6".repeat(200), piece6Timestamp)
+        savePiece(appPubKey, signer, "user_6", "6", "6".repeat(300), piece6Timestamp)
         Thread.sleep(1000L)
 
         //then
-        expectedPieces.add(Piece("6", appPubKey, "user_6", piece6Timestamp, "6".repeat(200)))
-        assertEquals(expectedPieces.size, pieces.size)
+        expectedPieces.add(Piece("6", appPubKey, "user_6", piece6Timestamp, "6".repeat(300), 3))
         assertEquals(expectedPieces, pieces.toSet())
 
         //when next piece triggers partition scaling
-        savePiece(appPubKey, signer, "user_7", "7", "7".repeat(200), Instant.now())
+        savePiece(appPubKey, signer, "user_7", "7", "7".repeat(300), Instant.now())
         Thread.sleep(1000L)
         val piece7Timestamp = Instant.now()
-        savePiece(appPubKey, signer, "user_7", "7", "7".repeat(200), piece7Timestamp)
+        savePiece(appPubKey, signer, "user_7", "7", "7".repeat(300), piece7Timestamp)
         Thread.sleep(1000L)
 
         //then
-        expectedPieces.add(Piece("7", appPubKey, "user_7", piece7Timestamp, "7".repeat(200)))
-        assertEquals(expectedPieces.size, pieces.size)
-        assertEquals(expectedPieces, pieces.toSet())
-
-        //when
-        val piece8Timestamp = Instant.now()
-        savePiece(appPubKey, signer, "user_8", "8", "8".repeat(200), piece8Timestamp)
-        Thread.sleep(1000L)
-
-        //then
-        expectedPieces.add(Piece("8", appPubKey, "user_8", piece8Timestamp, "8".repeat(200)))
-        assertEquals(expectedPieces.size, pieces.size)
-        assertEquals(expectedPieces, pieces.toSet())
-
-        //when
-        val piece9Timestamp = Instant.now()
-        savePiece(appPubKey, signer, "user_9", "9", "9".repeat(200), piece9Timestamp)
-        Thread.sleep(1000L)
-
-        //then
-        expectedPieces.add(Piece("9", appPubKey, "user_9", piece9Timestamp, "9".repeat(200)))
-        assertEquals(expectedPieces.size, pieces.size)
+        expectedPieces.add(Piece("7", appPubKey, "user_7", piece7Timestamp, "7".repeat(300), 1))
         assertEquals(expectedPieces, pieces.toSet())
     }
 
     private fun createApp(appPubKey: String?, signer: Ed25519Sign) {
         val createAppReq = mapOf(
             "appPubKey" to appPubKey,
-            "tierId" to TIER_ID,
-            "signature" to Hex.encode(signer.sign("$appPubKey$TIER_ID".toByteArray()))
+            "signature" to Hex.encode(signer.sign("$appPubKey".toByteArray()))
         ).let(::JsonObject)
 
         client.postAbs("$DDC_NODE_URL$API_PREFIX/apps")
@@ -645,9 +638,8 @@ internal class DdcConsumerTest {
             .get()
             .body()
         topology.partitions!!
-            .asSequence()
-            .sortedByDescending { it.ringToken }
-            .first { it.ringToken!! <= ringToken }
+            .filter { it.active }
+            .first { it.sectorStart!! <= ringToken && ringToken <= it.sectorEnd!! }
             .master!!
             .nodeHttpAddress
             .let { "$it$API_PREFIX/pieces" }

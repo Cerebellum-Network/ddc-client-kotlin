@@ -16,14 +16,15 @@ repositories {
 }
 
 val vertxVersion = "4.0.3"
+val smallryeMutinyVertx = "2.9.0"
 dependencies {
     // Vert.x
     implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
     implementation("io.vertx:vertx-web-client:$vertxVersion")
 
     // Smallrye
-    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:2.5.1")
-    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-web-client:2.5.1")
+    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-core:$smallryeMutinyVertx")
+    implementation("io.smallrye.reactive:smallrye-mutiny-vertx-web-client:$smallryeMutinyVertx")
 
     // Crypto
     implementation("com.google.crypto.tink:tink:1.5.0")
