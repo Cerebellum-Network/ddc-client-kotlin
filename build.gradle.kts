@@ -39,6 +39,7 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
     testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.6.0")
     testImplementation("com.google.crypto.tink:tink:1.5.0")
+    testImplementation("ch.qos.logback:logback-classic:1.1.7")
 }
 
 tasks {

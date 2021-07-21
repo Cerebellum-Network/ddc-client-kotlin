@@ -42,8 +42,10 @@ class DdcProducer(
     override fun send(piece: Piece): Uni<SendPieceResponse> {
         sign(piece)
 
-        val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, appTopology.get())
-        return client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
+        return Uni.createFrom().deferred {
+            val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, appTopology.get())
+            client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
+        }
             .onItem().transform { res ->
                 return@transform when (res.statusCode()) {
                     CREATED.code() -> res.bodyAsJson(SendPieceResponse::class.java)
@@ -52,7 +54,7 @@ class DdcProducer(
                         SendPieceResponse("")
                     }
                     MISDIRECTED_REQUEST.code() -> {
-                        log.warn("Invalid local network topology")
+                        log.warn("Invalid local app topology")
                         updateAppTopology()
                         throw InvalidAppTopologyException()
                     }
@@ -71,10 +73,8 @@ class DdcProducer(
                     }
                 }
             }
-            .onFailure(InvalidAppTopologyException::class.java).retry().atMost(1)
-            .onFailure(InsufficientNetworkCapacityException::class.java).retry()
-            .withBackOff(config.retryBackoff)
-            .indefinitely()
+            .onFailure { it is InvalidAppTopologyException || it is InsufficientNetworkCapacityException }.retry()
+            .atMost(1)
             .onFailure().retry().withBackOff(config.retryBackoff).atMost(config.retries.toLong())
     }
 
