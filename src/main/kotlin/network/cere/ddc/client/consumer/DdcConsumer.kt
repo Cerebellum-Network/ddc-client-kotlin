@@ -221,8 +221,8 @@ class DdcConsumer(
                 "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
 
             if (checkpointValue == null) {
-                url += when (stream.offsetReset) {
-                    OffsetReset.EARLIEST -> checkpointValue = "1"
+                checkpointValue = when (stream.offsetReset) {
+                    OffsetReset.EARLIEST -> "1"
                     OffsetReset.LATEST -> {
                         val partitionUrl =
                             "$node/api/rest/partitions/${partitionTopology.partitionId}?appPubKey=${config.appPubKey}"
@@ -230,7 +230,7 @@ class DdcConsumer(
                             .`as`(BodyCodec.json(Partition::class.java))
                             .sendAndAwait()
                             .body()
-                        checkpointValue = (partition.latestOffset!! + 1).toString()
+                        (partition.latestOffset!! + 1).toString()
                     }
                 }
             }
