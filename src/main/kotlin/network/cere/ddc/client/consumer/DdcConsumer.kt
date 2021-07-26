@@ -16,15 +16,13 @@ import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.core.parsetools.JsonParser
 import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
+import network.cere.ddc.client.api.Partition
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
-import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import java.lang.RuntimeException
 import java.time.Duration
-import java.time.Instant
 import java.util.*
 import java.util.concurrent.Executors
-import java.util.zip.CRC32
 import kotlin.collections.HashMap
 import kotlin.concurrent.schedule
 
@@ -33,7 +31,6 @@ class DdcConsumer(
     vertx: Vertx = Vertx.vertx(),
     private val checkpointer: Checkpointer = InMemoryCheckpointer()
 ) : Consumer {
-
     private val partitionPollInterval = Duration.ofMillis(config.partitionPollIntervalMs.toLong())
 
     private val log = LoggerFactory.getLogger(javaClass)
@@ -65,32 +62,123 @@ class DdcConsumer(
         }
     }
 
-    override fun consume(streamId: String, dataQuery: DataQuery): Multi<ConsumerRecord> {
-        return streams.getOrPut(streamId, { initializeStream(streamId, dataQuery) }).processor
+    override fun consume(streamId: String, fields: List<String>, offsetReset: OffsetReset): Multi<ConsumerRecord> {
+        return streams.getOrPut(streamId, { initializeStream(streamId, fields, offsetReset) }).processor
+    }
+
+    override fun getAppPieces(from: String, to: String, fields: List<String>): Multi<Piece> {
+        var pathQuery = ""
+        if (from.isNotEmpty() && to.isNotEmpty()) {
+            pathQuery += "&from=$from&to=$to"
+        }
+
+        if (fields.isNotEmpty()) {
+            pathQuery += "&fields=" + fields.joinToString(",")
+        }
+
+        return Multi.createBy().merging().streams(
+            metadataManager.getAppTopology(config.appPubKey).partitions!!
+                .filter { partitionMatchesTimeRange(it, from, to) }
+                .map { partition ->
+                    val stream = UnicastProcessor.create<Piece>()
+                    val parser = JsonParser.newParser().objectValueMode().handler { event ->
+                        stream.onNext(event.mapTo(Piece::class.java))
+                    }
+
+                    val url =
+                        "${partition.master!!.nodeHttpAddress}/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+
+                    log.debug("Fetching app pieces (url=$url)")
+                    client.getAbs(url)
+                        .`as`(BodyCodec.jsonStream(parser))
+                        .send()
+                        .subscribe().with({ res ->
+                            if (res.statusCode() == OK.code()) {
+                                log.debug("App pieces successfully fetched (url=$url)")
+                                stream.onComplete()
+                            } else {
+                                log.debug("Failed to fetch app pieces (url=$url, statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
+                                stream.onFailure()
+                            }
+                        }, { e ->
+                            log.error("Failed to fetch app pieces (url=$url)", e)
+                        })
+                    stream
+                }
+        )
+    }
+
+    override fun getUserPieces(userPubKey: String, from: String, to: String, fields: List<String>): Multi<Piece> {
+        var pathQuery = ""
+        if (from.isNotEmpty() && to.isNotEmpty()) {
+            pathQuery += "&from=$from&to=$to"
+        }
+
+        if (fields.isNotEmpty()) {
+            pathQuery += "&fields=" + fields.joinToString(",")
+        }
+
+        return Multi.createBy().concatenating().streams(
+            metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
+                .filter { partitionMatchesTimeRange(it, from, to) }
+                .sortedBy { it.createdAt }
+                .map { partition ->
+                    val stream = UnicastProcessor.create<Piece>()
+                    val parser = JsonParser.newParser().objectValueMode().handler { event ->
+                        stream.onNext(event.mapTo(Piece::class.java))
+                    }
+
+                    val url =
+                        "${partition.master!!.nodeHttpAddress}/api/rest/pieces?userPubKey=$userPubKey&appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+
+                    log.debug("Fetching user pieces (url=$url)")
+                    client.getAbs(url)
+                        .`as`(BodyCodec.jsonStream(parser))
+                        .send()
+                        .subscribe().with({ res ->
+                            if (res.statusCode() == OK.code()) {
+                                log.debug("User pieces successfully fetched (url=$url)")
+                                stream.onComplete()
+                            } else {
+                                log.debug("Failed to fetch user pieces (url=$url, statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
+                                stream.onFailure()
+                            }
+                        }, { e ->
+                            log.error("Failed to fetch user pieces (url=$url)", e)
+                        })
+                    stream
+                }
+        )
     }
 
     override fun getByCid(userPubKey: String, cid: String): Uni<Piece> {
-        val targetNode = metadataManager.getTargetNode(userPubKey, appTopology)
-        return client.getAbs("$targetNode/api/rest/ipfs/pieces/$cid").send()
-            .onItem().transform { res ->
-                return@transform when (res.statusCode()) {
-                    OK.code() -> res.bodyAsJson(Piece::class.java)
-                    INTERNAL_SERVER_ERROR.code() -> {
-                        log.warn("Internal server error (body=${res.bodyAsString()})")
-                        throw RuntimeException(res.bodyAsString())
-                    }
-                    SERVICE_UNAVAILABLE.code() -> {
-                        log.warn("Service unavailable (body=${res.bodyAsString()})")
-                        throw ServiceUnavailableException()
-                    }
-                    else -> {
-                        log.warn("Unknown exception (statusCode=${res.statusCode()})")
-                        throw RuntimeException(res.bodyAsString())
-                    }
-                }
-            }
+        return Uni.join().first(
+            metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
+                .map { targetPartition ->
+                    client.getAbs("${targetPartition.master!!.nodeHttpAddress}/api/rest/ipfs/pieces/$cid").send()
+                        .onItem().transform { res ->
+                            return@transform when (res.statusCode()) {
+                                OK.code() -> res.bodyAsJson(Piece::class.java)
+                                NOT_FOUND.code() -> {
+                                    log.warn("Not found (body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                INTERNAL_SERVER_ERROR.code() -> {
+                                    log.warn("Internal server error (body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                SERVICE_UNAVAILABLE.code() -> {
+                                    log.warn("Service unavailable (body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                else -> {
+                                    log.warn("Unknown exception (statusCode=${res.statusCode()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                            }
+                        }
+                }).withItem()
     }
-
 
     override fun commitCheckpoint(streamId: String, consumerRecord: ConsumerRecord) {
         val checkpointKey = "${config.appPubKey}:${consumerRecord.partitionId}:${streamId}"
@@ -109,8 +197,8 @@ class DdcConsumer(
         }
     }
 
-    private fun initializeStream(streamId: String, dataQuery: DataQuery): Stream {
-        val stream = Stream(streamId, UnicastProcessor.create(), dataQuery)
+    private fun initializeStream(streamId: String, fields: List<String>, offsetReset: OffsetReset): Stream {
+        val stream = Stream(streamId, UnicastProcessor.create(), fields, offsetReset)
         streams[streamId] = stream
 
         metadataManager.getAppTopology(config.appPubKey).partitions!!.forEach { partitionTopology ->
@@ -122,38 +210,39 @@ class DdcConsumer(
     private fun consumePartition(
         stream: Stream,
         partitionTopology: PartitionTopology,
-        lastToken: String = "",
     ) {
         log.debug("Going to start consuming the partition (streamId=${stream.id}, partitionId=${partitionTopology.partitionId})")
         val checkpointKey = "${config.appPubKey}:${partitionTopology.partitionId}:${stream.id}"
-        var checkpointValue = if (lastToken.isNotEmpty()) {
-            lastToken
-        } else {
-            checkpointer.getCheckpoint(checkpointKey)
-        }
+        var checkpointValue = checkpointer.getCheckpoint(checkpointKey)
 
         val pollPartition = Uni.createFrom().item {
             val node = partitionTopology.master!!.nodeHttpAddress
             var url =
                 "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
 
-            //TODO handle end of stream when 'to' specified
-            if (checkpointValue != null) {
-                url += "&from=$checkpointValue&to=" + Instant.now().toString()
-            } else {
-                if (stream.dataQuery.from.isNotEmpty() && stream.dataQuery.to.isNotEmpty()) {
-                    url += "&from=${stream.dataQuery.from}&to=${stream.dataQuery.to}"
+            if (checkpointValue == null) {
+                checkpointValue = when (stream.offsetReset) {
+                    OffsetReset.EARLIEST -> "1"
+                    OffsetReset.LATEST -> {
+                        val partitionUrl =
+                            "$node/api/rest/partitions/${partitionTopology.partitionId}?appPubKey=${config.appPubKey}"
+                        val partition = client.getAbs(partitionUrl)
+                            .`as`(BodyCodec.json(Partition::class.java))
+                            .sendAndAwait()
+                            .body()
+                        (partition.latestOffset!! + 1).toString()
+                    }
                 }
             }
+            url += "&offset=$checkpointValue"
 
-            if (stream.dataQuery.fields.isNotEmpty()) {
-                url += "&fields=" + stream.dataQuery.fields.joinToString(",")
+            if (stream.fields.isNotEmpty()) {
+                url += "&fields=" + stream.fields.joinToString(",")
             }
 
             val parser = JsonParser.newParser().objectValueMode().handler { event ->
                 val piece = event.mapTo(Piece::class.java)
-                //TODO introduce lastToken to DDC node?
-                checkpointValue = piece.timestamp!!.plusMillis(1).toString()
+                checkpointValue = (piece.offset!! + 1).toString()
                 val consumerRecord = ConsumerRecord(piece, partitionTopology.partitionId!!, checkpointValue!!)
                 stream.processor.onNext(consumerRecord)
             }
@@ -173,15 +262,18 @@ class DdcConsumer(
                 }.await().indefinitely()
         }
 
-        val pollPartitionIndefinitelyWithInterval = pollPartition.onItem()
+        val pollPartitionUntilSealedWithInterval = pollPartition.onItem()
             .delayIt().by(partitionPollInterval)
             .runSubscriptionOn(executor)
-            .repeat().indefinitely()
+            .repeat().until { it.statusCode() == NO_CONTENT.code() }
 
-        val partitionSubscription = pollPartitionIndefinitelyWithInterval.subscribe()
+        val partitionSubscription = pollPartitionUntilSealedWithInterval.subscribe()
             .with(
                 { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
-                { e -> log.error("Partition poll failure", e) }
+                { e -> log.error("Partition poll failure", e) },
+                {
+                    log.debug("Sealed partition is completely consumed (partitionId=${partitionTopology.partitionId})")
+                }
             )
 
         partitionSubscriptions[stream.id + partitionTopology.partitionId] = partitionSubscription
@@ -197,16 +289,27 @@ class DdcConsumer(
             log.debug("${newPartitions.size} new partitions found")
             streams.values.forEach { stream ->
                 newPartitions.forEach { partitionTopology ->
-                    consumePartition(stream, partitionTopology, partitionTopology.createdAt!!)
+                    consumePartition(stream, partitionTopology)
                 }
             }
         }
         appTopology = updatedAppTopology
     }
 
+    private fun partitionMatchesTimeRange(partitionTopology: PartitionTopology, from: String, to: String): Boolean {
+        if (from.isEmpty() || to.isEmpty()) {
+            return true
+        }
+
+        val createdBeforeEndOfTimeRange = partitionTopology.createdAt!! < to
+        val activeOrSealedAfterStartOfTimeRange = partitionTopology.active || partitionTopology.updatedAt!! > from
+        return createdBeforeEndOfTimeRange && activeOrSealedAfterStartOfTimeRange
+    }
+
     private class Stream(
         val id: String,
         val processor: UnicastProcessor<ConsumerRecord>,
-        val dataQuery: DataQuery,
+        val fields: List<String>,
+        val offsetReset: OffsetReset
     )
 }

@@ -5,6 +5,7 @@ import io.smallrye.mutiny.Uni
 import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
+import network.cere.ddc.client.api.PartitionTopology
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
 import java.util.zip.CRC32
@@ -42,8 +43,14 @@ class MetadataManager(
         return getAppTopology.runSubscriptionOn { Thread(it).start() }.await().indefinitely()
     }
 
-    fun getTargetNode(userPubKey: String, appTopology: AppTopology): String? {
+    fun getProducerTargetNode(userPubKey: String, appTopology: AppTopology): String? {
         val ringToken = CRC32().apply { update(userPubKey.toByteArray()) }.value
-        return appTopology.partitions!!.reversed().first { it.ringToken!! <= ringToken }.master!!.nodeHttpAddress
+        return appTopology.partitions!!.filter { it.active }
+            .first { it.sectorStart!! <= ringToken && ringToken <= it.sectorEnd!! }.master!!.nodeHttpAddress
+    }
+
+    fun getConsumerTargetPartitions(userPubKey: String, appTopology: AppTopology): List<PartitionTopology> {
+        val ringToken = CRC32().apply { update(userPubKey.toByteArray()) }.value
+        return appTopology.partitions!!.filter { it.sectorStart!! <= ringToken && ringToken <= it.sectorEnd!! }
     }
 }

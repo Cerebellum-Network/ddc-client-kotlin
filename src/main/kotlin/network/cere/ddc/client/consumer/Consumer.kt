@@ -2,9 +2,30 @@ package network.cere.ddc.client.consumer
 
 import io.smallrye.mutiny.Multi
 import io.smallrye.mutiny.Uni
+import network.cere.ddc.client.consumer.OffsetReset.EARLIEST
 
 interface Consumer : AutoCloseable {
-    fun consume(streamId: String, dataQuery: DataQuery): Multi<ConsumerRecord>
+    /*
+    Consume stream of application pieces. Uses offsets as checkpoints.
+     */
+    fun consume(
+        streamId: String,
+        fields: List<String> = listOf(),
+        offsetReset: OffsetReset = EARLIEST
+    ): Multi<ConsumerRecord>
+
+    fun getAppPieces(
+        from: String = "",
+        to: String = "",
+        fields: List<String> = listOf()
+    ): Multi<Piece>
+
+    fun getUserPieces(
+        userPubKey: String,
+        from: String = "",
+        to: String = "",
+        fields: List<String> = listOf()
+    ): Multi<Piece>
 
     fun getByCid(userPubKey: String, cid: String): Uni<Piece>
 

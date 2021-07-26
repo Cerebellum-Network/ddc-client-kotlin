@@ -14,14 +14,20 @@ data class PartitionTopology(
     @field:JsonProperty("partitionId")
     var partitionId: String? = null,
 
-    @field:JsonProperty("ringToken")
-    var ringToken: Long? = null,
+    @field:JsonProperty("sectorStart")
+    var sectorStart: Long? = null,
+
+    @field:JsonProperty("sectorEnd")
+    var sectorEnd: Long? = null,
 
     @field:JsonProperty("master")
     var master: NodeMetadata? = null,
 
     @field:JsonProperty("replicas")
     var replicas: Set<NodeMetadata>? = null,
+
+    @field:JsonProperty("active")
+    var active: Boolean = true,
 
     @field:JsonProperty("createdAt")
     var createdAt: String? = null,
