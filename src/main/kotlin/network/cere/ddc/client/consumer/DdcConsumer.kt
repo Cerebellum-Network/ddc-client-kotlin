@@ -152,7 +152,7 @@ class DdcConsumer(
     }
 
     override fun getByCid(userPubKey: String, cid: String): Uni<Piece> {
-        return Uni.join().first(
+        return Uni.combine().any().of(
             metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
                 .map { targetPartition ->
                     client.getAbs("${targetPartition.master!!.nodeHttpAddress}/api/rest/ipfs/pieces/$cid").send()
@@ -177,7 +177,7 @@ class DdcConsumer(
                                 }
                             }
                         }
-                }).withItem()
+                })
     }
 
     override fun commitCheckpoint(streamId: String, consumerRecord: ConsumerRecord) {
