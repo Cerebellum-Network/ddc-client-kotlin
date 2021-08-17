@@ -2,6 +2,7 @@ package network.cere.ddc.client.consumer
 
 import io.smallrye.mutiny.Multi
 import io.smallrye.mutiny.Uni
+import io.vertx.core.buffer.Buffer
 import network.cere.ddc.client.consumer.OffsetReset.EARLIEST
 
 interface Consumer : AutoCloseable {
@@ -27,7 +28,12 @@ interface Consumer : AutoCloseable {
         fields: List<String> = listOf()
     ): Multi<Piece>
 
-    fun getByCid(userPubKey: String, cid: String): Uni<Piece>
+    fun getPiece(userPubKey: String, cid: String): Uni<Piece>
+
+    /*
+    Get piece data (uses 'Transfer-encoding: chunked' to stream)
+     */
+    fun getPieceData(userPubKey: String, cid: String): Multi<Buffer>
 
     /*
     If enableAutoCommit is set to false - resolve checkpoint should be triggered by client when piece was successfully

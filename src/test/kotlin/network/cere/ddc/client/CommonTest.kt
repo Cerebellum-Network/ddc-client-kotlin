@@ -66,14 +66,14 @@ internal class CommonTest {
         Thread.sleep(1000L)
 
         //when
-        val users = 8
+        val users = 15
         val piecesPerUser = 10
         val expectedPieces = CopyOnWriteArrayList<network.cere.ddc.client.consumer.Piece>()
         val pieceResponses = ConcurrentHashMap<String, network.cere.ddc.client.consumer.Piece>()
 
         repeat(users) { userId ->
             repeat(piecesPerUser) { pieceId ->
-                val piece = Piece("$userId-$pieceId", appPubKey, "$userId", Instant.now(), "1".repeat(300))
+                val piece = Piece("$userId-$pieceId", appPubKey, "$userId", Instant.now(), "1".repeat(3000000))
                 val expectedPiece = network.cere.ddc.client.consumer.Piece(
                     piece.id,
                     piece.appPubKey,
@@ -104,7 +104,7 @@ internal class CommonTest {
 
         //then verify pieces by cid
         pieceResponses.forEach { (cid, expectedPiece) ->
-            val piece = ddcConsumer.getByCid(expectedPiece.userPubKey!!, cid).await().indefinitely()
+            val piece = ddcConsumer.getPiece(expectedPiece.userPubKey!!, cid).await().indefinitely()
             expectedPiece.appPubKey = ""
             assertEquals(expectedPiece, piece)
         }
