@@ -91,9 +91,9 @@ internal class DdcProducerTest {
         val piece2Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
         val piece3Timestamp = Instant.parse("2021-01-01T00:02:00.000Z")
 
-        val piece1Data = "1".repeat(6000000)
-        val piece2Data = "2".repeat(6000000)
-        val piece3Data = "3".repeat(6000000)
+        val piece1Data = "1".repeat(3000000)
+        val piece2Data = "2".repeat(3000000)
+        val piece3Data = "3".repeat(3000000)
         val piece1 = Piece("1", appPubKey, "user_1", piece1Timestamp, piece1Data)
         val piece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, piece2Data)
         val piece3 = Piece("3", appPubKey, "user_3", piece3Timestamp, piece3Data)
@@ -116,7 +116,7 @@ internal class DdcProducerTest {
 
         //when next piece triggers partition scaling
         val piece4Timestamp = Instant.parse("2021-01-01T00:03:00.000Z")
-        val piece4Data = "4".repeat(6000000)
+        val piece4Data = "4".repeat(3000000)
         val piece4 = Piece("4", appPubKey, "user_4", piece4Timestamp, piece4Data)
         testSubject.send(piece4).await().indefinitely()
 
@@ -128,7 +128,7 @@ internal class DdcProducerTest {
 
         //when
         val piece5Timestamp = Instant.parse("2021-01-01T00:04:00.000Z")
-        val piece5Data = "5".repeat(6000000)
+        val piece5Data = "5".repeat(3000000)
         val piece5 = Piece("5", appPubKey, "user_5", piece5Timestamp, piece5Data)
         testSubject.send(piece5).await().indefinitely()
 
@@ -140,7 +140,7 @@ internal class DdcProducerTest {
 
         //when
         val piece6Timestamp = Instant.parse("2021-01-01T00:05:00.000Z")
-        val piece6Data = "6".repeat(6000000)
+        val piece6Data = "6".repeat(3000000)
         val piece6 = Piece("6", appPubKey, "user_6", piece6Timestamp, piece6Data)
         testSubject.send(piece6).await().indefinitely()
 
@@ -152,7 +152,7 @@ internal class DdcProducerTest {
 
         //when next piece triggers partition scaling
         val piece7Timestamp = Instant.parse("2021-01-01T00:06:00.000Z")
-        val piece7Data = "7".repeat(6000000)
+        val piece7Data = "7".repeat(3000000)
         val piece7 = Piece("7", appPubKey, "user_7", piece7Timestamp, piece7Data)
         testSubject.send(piece7).await().indefinitely()
 

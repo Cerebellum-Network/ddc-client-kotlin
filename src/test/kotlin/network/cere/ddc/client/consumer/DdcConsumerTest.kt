@@ -598,9 +598,9 @@ internal class DdcConsumerTest {
         val piece1Timestamp = Instant.now()
         val piece2Timestamp = Instant.now()
         val piece3Timestamp = Instant.now()
-        val piece1Data = "1".repeat(6000000)
-        val piece2Data = "2".repeat(6000000)
-        val piece3Data = "3".repeat(6000000)
+        val piece1Data = "1".repeat(3000000)
+        val piece2Data = "2".repeat(3000000)
+        val piece3Data = "3".repeat(3000000)
         savePiece(appPubKey, signer, "user_1", "1", piece1Data, piece1Timestamp)
         savePiece(appPubKey, signer, "user_2", "2", piece2Data, piece2Timestamp)
         savePiece(appPubKey, signer, "user_3", "3", piece3Data, piece3Timestamp)
@@ -623,7 +623,7 @@ internal class DdcConsumerTest {
 
         //when next piece triggers partition scaling
         val piece4Timestamp = Instant.now()
-        val piece4Data = "4".repeat(6000000)
+        val piece4Data = "4".repeat(3000000)
         savePiece(appPubKey, signer, "user_4", "4", piece4Data, piece4Timestamp)
         sleep(1000)
 
@@ -633,9 +633,9 @@ internal class DdcConsumerTest {
 
         //when
         val piece5Timestamp = Instant.now()
-        val piece5Data = "5".repeat(6000000)
+        val piece5Data = "5".repeat(3000000)
         savePiece(appPubKey, signer, "user_5", "5", piece5Data, piece5Timestamp)
-        sleep(2000)
+        sleep(1000)
 
         //then
         expectedPieces.add(Piece("5", appPubKey, "user_5", piece5Timestamp, piece5Data, 2))
@@ -643,7 +643,7 @@ internal class DdcConsumerTest {
 
         //when
         val piece6Timestamp = Instant.now()
-        val piece6Data = "6".repeat(6000000)
+        val piece6Data = "6".repeat(3000000)
         savePiece(appPubKey, signer, "user_6", "6", piece6Data, piece6Timestamp)
         sleep(1000)
 
@@ -653,7 +653,7 @@ internal class DdcConsumerTest {
 
         //when next piece triggers partition scaling
         val piece7Timestamp = Instant.now()
-        val piece7Data = "7".repeat(6000000)
+        val piece7Data = "7".repeat(3000000)
         savePiece(appPubKey, signer, "user_7", "7", piece7Data, piece7Timestamp)
         sleep(1000)
         testSubject.close()
@@ -742,18 +742,23 @@ internal class DdcConsumerTest {
         val piece3Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
         val piece4Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
         val piece5Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
-        savePiece(appPubKey, signer, "user_1", "1", "1".repeat(300), piece1Timestamp)
-        savePiece(appPubKey, signer, "user_2", "2", "2".repeat(300), piece2Timestamp)
-        savePiece(appPubKey, signer, "user_1", "3", "3".repeat(300), piece3Timestamp)
-        savePiece(appPubKey, signer, "user_2", "4", "4".repeat(300), piece4Timestamp)
-        savePiece(appPubKey, signer, "user_1", "5", "5".repeat(300), piece5Timestamp)
+        val piece1Data = "1".repeat(3000000)
+        val piece2Data = "2".repeat(3000000)
+        val piece3Data = "3".repeat(3000000)
+        val piece4Data = "4".repeat(3000000)
+        val piece5Data = "5".repeat(3000000)
+        savePiece(appPubKey, signer, "user_1", "1", piece1Data, piece1Timestamp)
+        savePiece(appPubKey, signer, "user_2", "2", piece2Data, piece2Timestamp)
+        savePiece(appPubKey, signer, "user_1", "3", piece3Data, piece3Timestamp)
+        savePiece(appPubKey, signer, "user_2", "4", piece4Data, piece4Timestamp)
+        savePiece(appPubKey, signer, "user_1", "5", piece5Data, piece5Timestamp)
 
         val expectedPieces = setOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "1".repeat(300), 1),
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300), 2),
-            Piece("3", appPubKey, "user_1", piece3Timestamp, "3".repeat(300), 3),
-            Piece("4", appPubKey, "user_2", piece4Timestamp, "4".repeat(300), 1),
-            Piece("5", appPubKey, "user_1", piece5Timestamp, "5".repeat(300), 2)
+            Piece("1", appPubKey, "user_1", piece1Timestamp, piece1Data, 1),
+            Piece("2", appPubKey, "user_2", piece2Timestamp, piece2Data, 2),
+            Piece("3", appPubKey, "user_1", piece3Timestamp, piece3Data, 3),
+            Piece("4", appPubKey, "user_2", piece4Timestamp, piece4Data, 1),
+            Piece("5", appPubKey, "user_1", piece5Timestamp, piece5Data, 2)
         )
 
         //when
@@ -909,21 +914,26 @@ internal class DdcConsumerTest {
         val piece3Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
         val piece4Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
         val piece5Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
-        savePiece(appPubKey, signer, "user_1", "1", "1".repeat(300), piece1Timestamp)
-        savePiece(appPubKey, signer, "user_2", "2", "2".repeat(300), piece2Timestamp)
-        savePiece(appPubKey, signer, "user_1", "3", "3".repeat(300), piece3Timestamp)
-        savePiece(appPubKey, signer, "user_2", "4", "4".repeat(300), piece4Timestamp)
-        savePiece(appPubKey, signer, "user_1", "5", "5".repeat(300), piece5Timestamp)
+        val piece1Data = "1".repeat(3000000)
+        val piece2Data = "2".repeat(3000000)
+        val piece3Data = "3".repeat(3000000)
+        val piece4Data = "4".repeat(3000000)
+        val piece5Data = "5".repeat(3000000)
+        savePiece(appPubKey, signer, "user_1", "1", piece1Data, piece1Timestamp)
+        savePiece(appPubKey, signer, "user_2", "2", piece2Data, piece2Timestamp)
+        savePiece(appPubKey, signer, "user_1", "3", piece3Data, piece3Timestamp)
+        savePiece(appPubKey, signer, "user_2", "4", piece4Data, piece4Timestamp)
+        savePiece(appPubKey, signer, "user_1", "5", piece5Data, piece5Timestamp)
 
         val expectedPiecesUser1 = listOf(
-            Piece("1", appPubKey, "user_1", piece1Timestamp, "1".repeat(300), 1),
-            Piece("3", appPubKey, "user_1", piece3Timestamp, "3".repeat(300), 3),
-            Piece("5", appPubKey, "user_1", piece5Timestamp, "5".repeat(300), 2)
+            Piece("1", appPubKey, "user_1", piece1Timestamp, piece1Data, 1),
+            Piece("3", appPubKey, "user_1", piece3Timestamp, piece3Data, 3),
+            Piece("5", appPubKey, "user_1", piece5Timestamp, piece5Data, 2)
         )
 
         val expectedPiecesUser2 = listOf(
-            Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300), 2),
-            Piece("4", appPubKey, "user_2", piece4Timestamp, "4".repeat(300), 1)
+            Piece("2", appPubKey, "user_2", piece2Timestamp, piece2Data, 2),
+            Piece("4", appPubKey, "user_2", piece4Timestamp, piece4Data, 1)
         )
 
         //when
@@ -1034,8 +1044,8 @@ internal class DdcConsumerTest {
         savePiece(appPubKey, signer, "user_2", "4", "4".repeat(300), piece4Timestamp)
         val piece5Res = savePiece(appPubKey, signer, "user_1", "5", "5".repeat(300), piece5Timestamp)
 
-        val expectedPiece2 = Piece("2", "", "user_2", piece2Timestamp, "2".repeat(300), 0)
-        val expectedPiece5 = Piece("5", "", "user_1", piece5Timestamp, "5".repeat(300), 0)
+        val expectedPiece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300), 0)
+        val expectedPiece5 = Piece("5", appPubKey, "user_1", piece5Timestamp, "5".repeat(300), 0)
 
         //when
         val piece2 = testSubject.getPiece(userPubKey = "user_2", cid = piece2Res.cid!!)
@@ -1066,17 +1076,16 @@ internal class DdcConsumerTest {
 
         val user = "user_1"
         val pieceTimestamp = Instant.parse("2021-01-01T00:00:00.000Z")
-        val data = String(ByteArray(10_000_000).apply { Random().nextBytes(this) })
+        val data = String(ByteArray(6000000).apply { Random().nextBytes(this) })
         val sendPieceResponse = savePiece(appPubKey, signer, user, "1", data, pieceTimestamp)
 
         //when
         val pieceDataStream = testSubject.getPieceData(userPubKey = user, cid = sendPieceResponse.cid!!)
-println(sendPieceResponse.cid)
 
         //then
         var pieceDataAsBytes = byteArrayOf()
         pieceDataStream.subscribe().with { buffer -> pieceDataAsBytes += buffer.bytes }
-        sleep(10000)
+        sleep(3000)
 
         val pieceData = String(pieceDataAsBytes)
         assertEquals(data.length, pieceData.length)

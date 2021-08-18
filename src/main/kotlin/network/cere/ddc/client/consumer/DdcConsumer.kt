@@ -22,7 +22,6 @@ import network.cere.ddc.client.api.Partition
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
 import java.lang.RuntimeException
-import java.lang.Thread.sleep
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.Executors
@@ -191,34 +190,28 @@ class DdcConsumer(
                 .map { targetPartition ->
                     val url = "${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid/data"
                     val chunkStream = ChunkStream()
-                    println("Get url=$url")
                     client.getAbs(url)
                         .`as`(BodyCodec.pipe(WriteStream.newInstance(chunkStream)))
                         .send()
                         .onItem().transform { res ->
                             return@transform when (res.statusCode()) {
                                 OK.code() -> {
-                                    println("Ok url=$url")
                                     chunkStream
                                 }
                                 NOT_FOUND.code() -> {
                                     log.warn("Not found (url=$url, body=${res.bodyAsString()})")
-                                    println("Not found (url=$url, body=${res.bodyAsString()})")
                                     throw RuntimeException(res.bodyAsString())
                                 }
                                 INTERNAL_SERVER_ERROR.code() -> {
                                     log.warn("Internal server error (url=$url, body=${res.bodyAsString()})")
-                                    println("Internal server error (url=$url, body=${res.bodyAsString()})")
                                     throw RuntimeException(res.bodyAsString())
                                 }
                                 SERVICE_UNAVAILABLE.code() -> {
                                     log.warn("Service unavailable (url=$url, body=${res.bodyAsString()})")
-                                    println("Service unavailable (url=$url, body=${res.bodyAsString()})")
                                     throw RuntimeException(res.bodyAsString())
                                 }
                                 else -> {
                                     log.warn("Unknown exception (url=$url, statusCode=${res.statusCode()})")
-                                    println("Unknown exception (url=$url, statusCode=${res.statusCode()})")
                                     throw RuntimeException(res.bodyAsString())
                                 }
                             }
