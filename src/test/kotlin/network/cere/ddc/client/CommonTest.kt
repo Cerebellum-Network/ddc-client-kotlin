@@ -70,8 +70,7 @@ internal class CommonTest {
         //when
         val users = 4
         val piecesPerUser = 7
-        val expectedPieces = CopyOnWriteArrayList<network.cere.ddc.client.consumer.Piece>()
-        val pieceResponses = ConcurrentHashMap<String, network.cere.ddc.client.consumer.Piece>()
+        val expectedPieces = ArrayList<network.cere.ddc.client.consumer.Piece>(users * piecesPerUser)
 
         val userThreads = mutableListOf<Thread>()
         repeat(users) { userId ->
@@ -86,8 +85,7 @@ internal class CommonTest {
                         0 // ignore offsets
                     )
                     expectedPieces.add(expectedPiece)
-                    val sendPieceRes = ddcProducer.send(piece).await().indefinitely()
-                    pieceResponses[sendPieceRes.cid!!] = expectedPiece
+                    ddcProducer.send(piece).await().indefinitely()
                 }
         }
         userThreads.forEach { it.join() }
