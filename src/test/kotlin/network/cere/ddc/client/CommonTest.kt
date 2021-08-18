@@ -14,6 +14,7 @@ import network.cere.ddc.client.producer.DdcProducer
 import network.cere.ddc.client.producer.Piece
 import network.cere.ddc.client.producer.ProducerConfig
 import org.junit.jupiter.api.Test
+import java.time.Duration
 import java.time.Instant
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.CopyOnWriteArrayList
@@ -46,7 +47,8 @@ internal class CommonTest {
             ProducerConfig(
                 appPubKey = appPubKey,
                 appPrivKey = appPrivKey,
-                bootstrapNodes = listOf(DDC_NODE_URL)
+                bootstrapNodes = listOf(DDC_NODE_URL),
+                retryBackoff = Duration.ofMillis(500)
             )
         )
 
@@ -66,28 +68,27 @@ internal class CommonTest {
         Thread.sleep(1000L)
 
         //when
-        val users = 8
-        val piecesPerUser = 10
-        val expectedPieces = CopyOnWriteArrayList<network.cere.ddc.client.consumer.Piece>()
-        val pieceResponses = ConcurrentHashMap<String, network.cere.ddc.client.consumer.Piece>()
+        val users = 4
+        val piecesPerUser = 7
+        val expectedPieces = ArrayList<network.cere.ddc.client.consumer.Piece>(users * piecesPerUser)
 
+        val userThreads = mutableListOf<Thread>()
         repeat(users) { userId ->
-            repeat(piecesPerUser) { pieceId ->
-                val piece = Piece("$userId-$pieceId", appPubKey, "$userId", Instant.now(), "1".repeat(300))
-                val expectedPiece = network.cere.ddc.client.consumer.Piece(
-                    piece.id,
-                    piece.appPubKey,
-                    piece.userPubKey,
-                    piece.timestamp,
-                    piece.data,
-                    0 // ignore offsets
-                )
-                expectedPieces.add(expectedPiece)
-                val sendPieceRes = ddcProducer.send(piece).await().indefinitely()
-                pieceResponses[sendPieceRes.cid!!] = expectedPiece
-            }
+                repeat(piecesPerUser) { pieceId ->
+                    val piece = Piece("$userId-$pieceId", appPubKey, "$userId", Instant.now(), "1".repeat(6000000))
+                    val expectedPiece = network.cere.ddc.client.consumer.Piece(
+                        piece.id,
+                        piece.appPubKey,
+                        piece.userPubKey,
+                        piece.timestamp,
+                        piece.data,
+                        0 // ignore offsets
+                    )
+                    expectedPieces.add(expectedPiece)
+                    ddcProducer.send(piece).await().indefinitely()
+                }
         }
-        Thread.sleep(1000L)
+        userThreads.forEach { it.join() }
 
         //then verify app pieces
         pieces.forEach { it.offset = 0 } // ignore offsets
@@ -100,13 +101,6 @@ internal class CommonTest {
             val userPieces = ddcConsumer.getUserPieces("$userId").collect().asList().await().indefinitely()
             userPieces.forEach { it.offset = 0 } // ignore offsets
             assertEquals(expectedUserPieces.toSet(), userPieces.toSet())
-        }
-
-        //then verify pieces by cid
-        pieceResponses.forEach { (cid, expectedPiece) ->
-            val piece = ddcConsumer.getByCid(expectedPiece.userPubKey!!, cid).await().indefinitely()
-            expectedPiece.appPubKey = ""
-            assertEquals(expectedPiece, piece)
         }
     }
 

@@ -91,9 +91,12 @@ internal class DdcProducerTest {
         val piece2Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
         val piece3Timestamp = Instant.parse("2021-01-01T00:02:00.000Z")
 
-        val piece1 = Piece("1", appPubKey, "user_1", piece1Timestamp, "1".repeat(300))
-        val piece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300))
-        val piece3 = Piece("3", appPubKey, "user_3", piece3Timestamp, "3".repeat(300))
+        val piece1Data = "1".repeat(3000000)
+        val piece2Data = "2".repeat(3000000)
+        val piece3Data = "3".repeat(3000000)
+        val piece1 = Piece("1", appPubKey, "user_1", piece1Timestamp, piece1Data)
+        val piece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, piece2Data)
+        val piece3 = Piece("3", appPubKey, "user_3", piece3Timestamp, piece3Data)
 
         //when
         testSubject.send(piece1).await().indefinitely()
@@ -101,9 +104,9 @@ internal class DdcProducerTest {
         testSubject.send(piece3).await().indefinitely()
 
         val expectedPieces = mutableSetOf(
-            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"${"1".repeat(300)}","offset":1}""",
-            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"${"2".repeat(300)}","offset":2}""",
-            """{"id":"3","appPubKey":"$appPubKey","userPubKey":"user_3","timestamp":"2021-01-01T00:02:00Z","data":"${"3".repeat(300)}","offset":3}""",
+            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"$piece1Data","offset":1}""",
+            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"$piece2Data","offset":2}""",
+            """{"id":"3","appPubKey":"$appPubKey","userPubKey":"user_3","timestamp":"2021-01-01T00:02:00Z","data":"$piece3Data","offset":3}""",
         )
 
         var pieces = getPieces(appPubKey)
@@ -113,46 +116,50 @@ internal class DdcProducerTest {
 
         //when next piece triggers partition scaling
         val piece4Timestamp = Instant.parse("2021-01-01T00:03:00.000Z")
-        val piece4 = Piece("4", appPubKey, "user_4", piece4Timestamp, "4".repeat(300))
+        val piece4Data = "4".repeat(3000000)
+        val piece4 = Piece("4", appPubKey, "user_4", piece4Timestamp, piece4Data)
         testSubject.send(piece4).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"4","appPubKey":"$appPubKey","userPubKey":"user_4","timestamp":"2021-01-01T00:03:00Z","data":"${"4".repeat(300)}","offset":1}""")
+        expectedPieces.add("""{"id":"4","appPubKey":"$appPubKey","userPubKey":"user_4","timestamp":"2021-01-01T00:03:00Z","data":"$piece4Data","offset":1}""")
         assertEquals(expectedPieces, pieces.toSet())
 
         //when
         val piece5Timestamp = Instant.parse("2021-01-01T00:04:00.000Z")
-        val piece5 = Piece("5", appPubKey, "user_5", piece5Timestamp, "5".repeat(300))
+        val piece5Data = "5".repeat(3000000)
+        val piece5 = Piece("5", appPubKey, "user_5", piece5Timestamp, piece5Data)
         testSubject.send(piece5).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"5","appPubKey":"$appPubKey","userPubKey":"user_5","timestamp":"2021-01-01T00:04:00Z","data":"${"5".repeat(300)}","offset":2}""")
+        expectedPieces.add("""{"id":"5","appPubKey":"$appPubKey","userPubKey":"user_5","timestamp":"2021-01-01T00:04:00Z","data":"$piece5Data","offset":2}""")
         assertEquals(expectedPieces, pieces.toSet())
 
         //when
         val piece6Timestamp = Instant.parse("2021-01-01T00:05:00.000Z")
-        val piece6 = Piece("6", appPubKey, "user_6", piece6Timestamp, "6".repeat(300))
+        val piece6Data = "6".repeat(3000000)
+        val piece6 = Piece("6", appPubKey, "user_6", piece6Timestamp, piece6Data)
         testSubject.send(piece6).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"6","appPubKey":"$appPubKey","userPubKey":"user_6","timestamp":"2021-01-01T00:05:00Z","data":"${"6".repeat(300)}","offset":3}""")
+        expectedPieces.add("""{"id":"6","appPubKey":"$appPubKey","userPubKey":"user_6","timestamp":"2021-01-01T00:05:00Z","data":"$piece6Data","offset":3}""")
         assertEquals(expectedPieces, pieces.toSet())
 
         //when next piece triggers partition scaling
         val piece7Timestamp = Instant.parse("2021-01-01T00:06:00.000Z")
-        val piece7 = Piece("7", appPubKey, "user_7", piece7Timestamp, "7".repeat(300))
+        val piece7Data = "7".repeat(3000000)
+        val piece7 = Piece("7", appPubKey, "user_7", piece7Timestamp, piece7Data)
         testSubject.send(piece7).await().indefinitely()
 
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"7","appPubKey":"$appPubKey","userPubKey":"user_7","timestamp":"2021-01-01T00:06:00Z","data":"${"7".repeat(300)}","offset":1}""")
+        expectedPieces.add("""{"id":"7","appPubKey":"$appPubKey","userPubKey":"user_7","timestamp":"2021-01-01T00:06:00Z","data":"$piece7Data","offset":1}""")
         assertEquals(expectedPieces, pieces.toSet())
     }
 

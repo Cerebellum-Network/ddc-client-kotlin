@@ -12,8 +12,10 @@ import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 
 import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.subscription.Cancellable
+import io.vertx.core.buffer.Buffer
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.core.parsetools.JsonParser
+import io.vertx.mutiny.core.streams.WriteStream
 import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.Partition
@@ -151,11 +153,12 @@ class DdcConsumer(
         )
     }
 
-    override fun getByCid(userPubKey: String, cid: String): Uni<Piece> {
+    override fun getPiece(userPubKey: String, cid: String): Uni<Piece> {
         return Uni.join().first(
             metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
+                .distinctBy { it.master!!.nodeId }
                 .map { targetPartition ->
-                    client.getAbs("${targetPartition.master!!.nodeHttpAddress}/api/rest/ipfs/pieces/$cid").send()
+                    client.getAbs("${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid").send()
                         .onItem().transform { res ->
                             return@transform when (res.statusCode()) {
                                 OK.code() -> res.bodyAsJson(Piece::class.java)
@@ -178,6 +181,43 @@ class DdcConsumer(
                             }
                         }
                 }).withItem()
+    }
+
+    override fun getPieceData(userPubKey: String, cid: String): Multi<Buffer> {
+        return Uni.join().first(
+            metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
+                .distinctBy { it.master!!.nodeId }
+                .map { targetPartition ->
+                    val url = "${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid/data"
+                    val chunkStream = ChunkStream()
+                    client.getAbs(url)
+                        .`as`(BodyCodec.pipe(WriteStream.newInstance(chunkStream)))
+                        .send()
+                        .onItem().transform { res ->
+                            return@transform when (res.statusCode()) {
+                                OK.code() -> {
+                                    chunkStream
+                                }
+                                NOT_FOUND.code() -> {
+                                    log.warn("Not found (url=$url, body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                INTERNAL_SERVER_ERROR.code() -> {
+                                    log.warn("Internal server error (url=$url, body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                SERVICE_UNAVAILABLE.code() -> {
+                                    log.warn("Service unavailable (url=$url, body=${res.bodyAsString()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                                else -> {
+                                    log.warn("Unknown exception (url=$url, statusCode=${res.statusCode()})")
+                                    throw RuntimeException(res.bodyAsString())
+                                }
+                            }
+                        }
+                }
+        ).withItem().toMulti().flatMap { it.toMulti() }
     }
 
     override fun commitCheckpoint(streamId: String, consumerRecord: ConsumerRecord) {
