@@ -104,12 +104,6 @@ internal class CommonTest {
             userPieces.forEach { it.offset = 0 } // ignore offsets
             assertEquals(expectedUserPieces.toSet(), userPieces.toSet())
         }
-
-        //then verify pieces by cid
-        pieceResponses.forEach { (cid, expectedPiece) ->
-            val piece = ddcConsumer.getPiece(expectedPiece.userPubKey!!, cid).await().indefinitely()
-            assertEquals(expectedPiece, piece)
-        }
     }
 
     private fun createApp(appPubKey: String?, signer: Ed25519Sign) {

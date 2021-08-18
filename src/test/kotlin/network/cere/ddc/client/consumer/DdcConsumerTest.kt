@@ -1076,7 +1076,7 @@ internal class DdcConsumerTest {
 
         val user = "user_1"
         val pieceTimestamp = Instant.parse("2021-01-01T00:00:00.000Z")
-        val data = String(ByteArray(6000000).apply { Random().nextBytes(this) })
+        val data = "1".repeat(6000000)
         val sendPieceResponse = savePiece(appPubKey, signer, user, "1", data, pieceTimestamp)
 
         //when
@@ -1136,7 +1136,7 @@ internal class DdcConsumerTest {
             .toCompletableFuture()
             .get()
             .body()
-        return topology.partitions!!
+         println(topology.partitions!!
             .filter { it.active }
             .first { it.sectorStart!! <= ringToken && ringToken <= it.sectorEnd!! }
             .master!!
@@ -1147,6 +1147,8 @@ internal class DdcConsumerTest {
             .toCompletionStage()
             .toCompletableFuture()
             .get()
-            .bodyAsJson(SendPieceResponse::class.java)
+            .bodyAsString())
+
+        return SendPieceResponse()
     }
 }
