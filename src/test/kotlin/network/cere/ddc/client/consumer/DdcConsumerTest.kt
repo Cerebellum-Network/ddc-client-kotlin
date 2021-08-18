@@ -1136,7 +1136,7 @@ internal class DdcConsumerTest {
             .toCompletableFuture()
             .get()
             .body()
-         println(topology.partitions!!
+        return topology.partitions!!
             .filter { it.active }
             .first { it.sectorStart!! <= ringToken && ringToken <= it.sectorEnd!! }
             .master!!
@@ -1147,8 +1147,6 @@ internal class DdcConsumerTest {
             .toCompletionStage()
             .toCompletableFuture()
             .get()
-            .bodyAsString())
-
-        return SendPieceResponse()
+            .bodyAsJson(SendPieceResponse::class.java)
     }
 }
