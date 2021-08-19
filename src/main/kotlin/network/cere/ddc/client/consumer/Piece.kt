@@ -1,6 +1,7 @@
 package network.cere.ddc.client.consumer
 
 import com.fasterxml.jackson.annotation.JsonProperty
+import network.cere.ddc.client.api.Metadata
 import java.time.Instant
 
 data class Piece(
@@ -20,5 +21,8 @@ data class Piece(
     var data: String? = null,
 
     @field:JsonProperty("offset")
-    var offset: Long? = null
+    var offset: Long? = null,
+
+    @field:JsonProperty("metadata")
+    var metadata: Metadata? = null,
 )

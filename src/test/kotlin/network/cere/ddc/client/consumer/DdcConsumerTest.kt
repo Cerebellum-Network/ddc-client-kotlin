@@ -1044,8 +1044,8 @@ internal class DdcConsumerTest {
         savePiece(appPubKey, signer, "user_2", "4", "4".repeat(300), piece4Timestamp)
         val piece5Res = savePiece(appPubKey, signer, "user_1", "5", "5".repeat(300), piece5Timestamp)
 
-        val expectedPiece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300), 0)
-        val expectedPiece5 = Piece("5", appPubKey, "user_1", piece5Timestamp, "5".repeat(300), 0)
+        val expectedPiece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "2".repeat(300))
+        val expectedPiece5 = Piece("5", appPubKey, "user_1", piece5Timestamp, "5".repeat(300))
 
         //when
         val piece2 = testSubject.getPiece(userPubKey = "user_2", cid = piece2Res.cid!!)
