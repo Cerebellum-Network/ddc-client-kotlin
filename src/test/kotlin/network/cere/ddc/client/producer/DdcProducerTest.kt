@@ -11,6 +11,7 @@ import io.vertx.core.parsetools.JsonParser
 import io.vertx.ext.web.client.WebClient
 import io.vertx.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
+import network.cere.ddc.client.api.Metadata
 import org.junit.jupiter.api.Test
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
@@ -49,7 +50,15 @@ internal class DdcProducerTest {
         val piece1Timestamp = Instant.parse("2021-01-01T00:00:00.000Z")
         val piece2Timestamp = Instant.parse("2021-01-01T00:01:00.000Z")
 
-        val piece1 = Piece("1", appPubKey, "user_1", piece1Timestamp, "{\"event_type\":\"first event\"}")
+        val piece1 = Piece(
+            "1",
+            appPubKey,
+            "user_1",
+            piece1Timestamp,
+            "{\"event_type\":\"first event\"}",
+            "",
+            Metadata("bytes", "jpg", true, mapOf("encryptionAttribute" to "value"), mapOf("customAttribute" to "value"))
+        )
         val piece2 = Piece("2", appPubKey, "user_2", piece2Timestamp, "{\"event_type\":\"second event\"}")
 
         //when
@@ -57,7 +66,7 @@ internal class DdcProducerTest {
         testSubject.send(piece2).await().indefinitely()
 
         val expectedPieces = setOf(
-            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"{\"event_type\":\"first event\"}","offset":1}""",
+            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"{\"event_type\":\"first event\"}","metadata":{"contentType":"bytes","mimeType":"jpg","isEncrypted":true,"encryptionAttributes":{"encryptionAttribute":"value"},"customAttributes":{"customAttribute":"value"}},"offset":1}""",
             """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"{\"event_type\":\"second event\"}","offset":2}""",
         )
 
