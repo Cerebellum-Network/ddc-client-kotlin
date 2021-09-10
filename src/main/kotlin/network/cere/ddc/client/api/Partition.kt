@@ -42,6 +42,9 @@ data class Partition(
     @field:JsonProperty("updatedAt")
     var updatedAt: String? = null,
 
-    @field:JsonProperty("latestOffset")
-    var latestOffset: Long? = null
+    @field:JsonProperty("offset")
+    var offset: Long? = null,
+
+    @field:JsonProperty("checksum")
+    var checksum: String? = null
 )

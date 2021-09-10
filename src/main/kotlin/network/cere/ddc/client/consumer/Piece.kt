@@ -23,6 +23,9 @@ data class Piece(
     @field:JsonProperty("offset")
     var offset: Long? = null,
 
+    @field:JsonProperty("checksum")
+    var checksum: String? = null,
+
     @field:JsonProperty("metadata")
     var metadata: Metadata? = null,
 )

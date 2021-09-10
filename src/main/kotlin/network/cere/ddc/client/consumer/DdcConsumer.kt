@@ -270,7 +270,7 @@ class DdcConsumer(
                             .`as`(BodyCodec.json(Partition::class.java))
                             .sendAndAwait()
                             .body()
-                        (partition.latestOffset!! + 1).toString()
+                        (partition.offset!! + 1).toString()
                     }
                 }
             }
