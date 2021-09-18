@@ -1,6 +1,8 @@
 package network.cere.ddc.client.consumer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import com.google.crypto.tink.subtle.Ed25519Sign
+import com.google.crypto.tink.subtle.Hex
 import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Multi
 import io.vertx.core.json.jackson.DatabindCodec
@@ -13,6 +15,7 @@ import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.subscription.Cancellable
 import io.vertx.core.buffer.Buffer
+import io.vertx.mutiny.core.MultiMap
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.core.parsetools.JsonParser
 import io.vertx.mutiny.core.streams.WriteStream
@@ -23,6 +26,7 @@ import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
 import java.lang.RuntimeException
 import java.time.Duration
+import java.time.Instant
 import java.util.*
 import java.util.concurrent.Executors
 import kotlin.collections.HashMap
@@ -51,6 +55,8 @@ class DdcConsumer(
     private val executor = Executors.newFixedThreadPool(config.partitionPollExecutorSize)
 
     private var appTopology: AppTopology
+
+    private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")).sliceArray(0 until 32))
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
@@ -87,12 +93,19 @@ class DdcConsumer(
                         stream.onNext(event.mapTo(Piece::class.java))
                     }
 
+                    val requestUrl = "/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}"
+                    val headers = getSignedHeaders()
+                    val signature = generateSignature(headers)
+                    val httpHeaders = generateHttpHeaders(requestUrl, headers, signature)
+
                     val url =
-                        "${partition.master!!.nodeHttpAddress}/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+                        "${partition.master!!.nodeHttpAddress}$requestUrl" + pathQuery
 
                     log.debug("Fetching app pieces (url=$url)")
-                    client.getAbs(url)
-                        .`as`(BodyCodec.jsonStream(parser))
+                    val temp = client.getAbs(url)
+                        .putHeaders(httpHeaders)
+
+                        temp.`as`(BodyCodec.jsonStream(parser))
                         .send()
                         .subscribe().with({ res ->
                             if (res.statusCode() == OK.code()) {
@@ -352,4 +365,24 @@ class DdcConsumer(
         val fields: List<String>,
         val offsetReset: OffsetReset
     )
+
+    private class HttpHeader(val name: String, val value: String)
+
+    private fun getSignedHeaders(): List<HttpHeader> {
+        return listOf(HttpHeader("date-time", Instant.now().toString()))
+    }
+
+    private fun generateSignature(headers: List<HttpHeader>): String {
+        val data = headers.joinToString("") { header -> header.value }
+        return Hex.encode(signer.sign(data.toByteArray()))
+    }
+
+    private fun generateHttpHeaders(url: String, headers: List<HttpHeader>, signature: String): MultiMap {
+        val signedHeaders = headers.joinToString(";") { header -> header.name }
+        val authorization = "Credential=${config.appPubKey},SignedHeaders=$signedHeaders,Signature=$signature"
+        return MultiMap.caseInsensitiveMultiMap()
+            .add("request-url", url)
+            .add("Authorization", authorization)
+    }
+
 }
