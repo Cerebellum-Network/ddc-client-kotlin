@@ -93,19 +93,15 @@ class DdcConsumer(
                         stream.onNext(event.mapTo(Piece::class.java))
                     }
 
-                    val requestUrl = "/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}"
+                    val url = "${partition.master!!.nodeHttpAddress}/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
                     val headers = getSignedHeaders()
                     val signature = generateSignature(headers)
-                    val httpHeaders = generateHttpHeaders(requestUrl, headers, signature)
-
-                    val url =
-                        "${partition.master!!.nodeHttpAddress}$requestUrl" + pathQuery
+                    val httpHeaders = generateHttpHeaders(url, headers, signature)
 
                     log.debug("Fetching app pieces (url=$url)")
-                    val temp = client.getAbs(url)
+                    client.getAbs(url)
                         .putHeaders(httpHeaders)
-
-                        temp.`as`(BodyCodec.jsonStream(parser))
+                        .`as`(BodyCodec.jsonStream(parser))
                         .send()
                         .subscribe().with({ res ->
                             if (res.statusCode() == OK.code()) {
@@ -369,7 +365,7 @@ class DdcConsumer(
     private class HttpHeader(val name: String, val value: String)
 
     private fun getSignedHeaders(): List<HttpHeader> {
-        return listOf(HttpHeader("date-time", Instant.now().toString()))
+        return listOf(HttpHeader("date", Instant.now().toString()))
     }
 
     private fun generateSignature(headers: List<HttpHeader>): String {
