@@ -9,5 +9,5 @@ data class ConsumerConfig(
     val updateAppTopologyIntervalMs: Int = 30_000,
     val enableAutoCommit: Boolean = true,
     val autoCommitIntervalMs: Int = 5_000,
-    val appPrivKey: String = "",
+    val appPrivateKey: String = "",
 )

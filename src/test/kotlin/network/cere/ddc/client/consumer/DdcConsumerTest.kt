@@ -39,6 +39,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -48,7 +49,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -100,6 +102,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -112,7 +115,8 @@ internal class DdcConsumerTest {
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                autoCommitIntervalMs = 100
+                autoCommitIntervalMs = 100,
+                appPrivateKey = appPrivateKey
             ),
             checkpointer = checkpointer
         )
@@ -171,7 +175,8 @@ internal class DdcConsumerTest {
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                autoCommitIntervalMs = 100
+                autoCommitIntervalMs = 100,
+                appPrivateKey = appPrivateKey
             ),
             checkpointer = checkpointer
         )
@@ -196,6 +201,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -208,7 +214,8 @@ internal class DdcConsumerTest {
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                enableAutoCommit = false
+                enableAutoCommit = false,
+                appPrivateKey = appPrivateKey
             ),
             checkpointer = checkpointer
         )
@@ -266,7 +273,8 @@ internal class DdcConsumerTest {
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                enableAutoCommit = false
+                enableAutoCommit = false,
+                appPrivateKey = appPrivateKey
             ),
             checkpointer = checkpointer
         )
@@ -307,6 +315,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -319,7 +328,8 @@ internal class DdcConsumerTest {
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                enableAutoCommit = false
+                enableAutoCommit = false,
+                appPrivateKey = appPrivateKey
             ),
             checkpointer = checkpointer
         )
@@ -382,7 +392,8 @@ internal class DdcConsumerTest {
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
                 autoCommitIntervalMs = 100,
-                enableAutoCommit = false
+                enableAutoCommit = false,
+                appPrivateKey = appPrivateKey
             ),
             checkpointer = checkpointer
         )
@@ -407,6 +418,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -416,7 +428,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf("https://ddc.unavailable-node.network", DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -468,6 +481,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -477,7 +491,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -582,6 +597,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -591,7 +607,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -668,6 +685,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -677,7 +695,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -724,6 +743,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -733,7 +753,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -773,6 +794,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -782,7 +804,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -842,6 +865,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -851,7 +875,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -896,6 +921,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -905,7 +931,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -950,6 +977,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -959,7 +987,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -1020,6 +1049,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -1029,7 +1059,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 
@@ -1061,6 +1092,7 @@ internal class DdcConsumerTest {
         //given
         val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
         val appPubKey = Hex.encode(appKeyPair.publicKey)
+        val appPrivateKey = Hex.encode(appKeyPair.privateKey)
         val signer = Ed25519Sign(appKeyPair.privateKey)
 
         createApp(appPubKey, signer)
@@ -1070,7 +1102,8 @@ internal class DdcConsumerTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivateKey
             )
         )
 

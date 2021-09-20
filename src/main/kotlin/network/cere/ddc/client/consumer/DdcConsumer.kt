@@ -25,6 +25,7 @@ import network.cere.ddc.client.api.Partition
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
 import java.lang.RuntimeException
+import java.net.URL
 import java.time.Duration
 import java.time.Instant
 import java.util.*
@@ -56,7 +57,11 @@ class DdcConsumer(
 
     private var appTopology: AppTopology
 
-    private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")).sliceArray(0 until 32))
+    private val requestExpiration = 300L
+
+    private val getPiecesHttpMethod = "GET"
+
+    private val signer = Ed25519Sign(Hex.decode(config.appPrivateKey.removePrefix("0x")).sliceArray(0 until 32))
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
@@ -93,15 +98,17 @@ class DdcConsumer(
                         stream.onNext(event.mapTo(Piece::class.java))
                     }
 
-                    val url = "${partition.master!!.nodeHttpAddress}/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
-                    val headers = getSignedHeaders()
-                    val signature = generateSignature(headers)
-                    val httpHeaders = generateHttpHeaders(url, headers, signature)
+                    val address = (partition.master!!.nodeHttpAddress)!!
+                    val host = URL(address).host
+                    val path = "/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+                    val url = "$address$path"
+                    val headers = generateSignedHeaders(host)
+                    val signature = generateSignature(getPiecesHttpMethod, path, headers)
+                    val httpHeaders = generateHttpHeaders(headers, signature)
 
                     log.debug("Fetching app pieces (url=$url)")
                     client.getAbs(url)
                         .putHeaders(httpHeaders)
-                        .`as`(BodyCodec.jsonStream(parser))
                         .send()
                         .subscribe().with({ res ->
                             if (res.statusCode() == OK.code()) {
@@ -139,11 +146,17 @@ class DdcConsumer(
                         stream.onNext(event.mapTo(Piece::class.java))
                     }
 
-                    val url =
-                        "${partition.master!!.nodeHttpAddress}/api/rest/pieces?userPubKey=$userPubKey&appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+                    val address = (partition.master!!.nodeHttpAddress)!!
+                    val host = URL(address).host
+                    val path = "/api/rest/pieces?userPubKey=$userPubKey&appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+                    val url = "$address$path"
+                    val headers = generateSignedHeaders(host)
+                    val signature = generateSignature(getPiecesHttpMethod, path, headers)
+                    val httpHeaders = generateHttpHeaders(headers, signature)
 
                     log.debug("Fetching user pieces (url=$url)")
                     client.getAbs(url)
+                        .putHeaders(httpHeaders)
                         .`as`(BodyCodec.jsonStream(parser))
                         .send()
                         .subscribe().with({ res ->
@@ -364,20 +377,22 @@ class DdcConsumer(
 
     private class HttpHeader(val name: String, val value: String)
 
-    private fun getSignedHeaders(): List<HttpHeader> {
-        return listOf(HttpHeader("date", Instant.now().toString()))
+    private fun generateSignedHeaders(host: String): List<HttpHeader> {
+        return listOf(
+            HttpHeader("Host", host),
+            HttpHeader("Expires", Instant.now().plusSeconds(requestExpiration).toString())
+        )
     }
 
-    private fun generateSignature(headers: List<HttpHeader>): String {
-        val data = headers.joinToString("") { header -> header.value }
+    private fun generateSignature(httpMethod: String, path: String, headers: List<HttpHeader>): String {
+        val data = httpMethod + path +  headers.joinToString("") { header -> header.value }
         return Hex.encode(signer.sign(data.toByteArray()))
     }
 
-    private fun generateHttpHeaders(url: String, headers: List<HttpHeader>, signature: String): MultiMap {
-        val signedHeaders = headers.joinToString(";") { header -> header.name }
-        val authorization = "Credential=${config.appPubKey},SignedHeaders=$signedHeaders,Signature=$signature"
+    private fun generateHttpHeaders(signedHeaders: List<HttpHeader>, signature: String): MultiMap {
+        val headerList = signedHeaders.joinToString(";") { header -> header.name }
+        val authorization = "Credential=${config.appPubKey},SignedHeaders=$headerList,Signature=$signature"
         return MultiMap.caseInsensitiveMultiMap()
-            .add("request-url", url)
             .add("Authorization", authorization)
     }
 
