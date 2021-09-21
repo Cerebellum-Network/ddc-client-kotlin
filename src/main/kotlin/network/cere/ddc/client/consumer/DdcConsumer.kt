@@ -100,10 +100,10 @@ class DdcConsumer(
 
                     val address = (partition.master!!.nodeHttpAddress)!!
                     val host = URL(address).host
-                    val path = "/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
-                    val url = "$address$path"
+                    val uri = "/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+                    val url = "$address$uri"
                     val headers = generateSignedHeaders(host)
-                    val signature = generateSignature(getPiecesHttpMethod, path, headers)
+                    val signature = generateSignature(getPiecesHttpMethod, uri, headers)
                     val httpHeaders = generateHttpHeaders(headers, signature)
 
                     log.debug("Fetching app pieces (url=$url)")
@@ -148,10 +148,10 @@ class DdcConsumer(
 
                     val address = (partition.master!!.nodeHttpAddress)!!
                     val host = URL(address).host
-                    val path = "/api/rest/pieces?userPubKey=$userPubKey&appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
-                    val url = "$address$path"
+                    val uri = "/api/rest/pieces?userPubKey=$userPubKey&appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+                    val url = "$address$uri"
                     val headers = generateSignedHeaders(host)
-                    val signature = generateSignature(getPiecesHttpMethod, path, headers)
+                    val signature = generateSignature(getPiecesHttpMethod, uri, headers)
                     val httpHeaders = generateHttpHeaders(headers, signature)
 
                     log.debug("Fetching user pieces (url=$url)")
@@ -180,7 +180,17 @@ class DdcConsumer(
             metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
                 .distinctBy { it.master!!.nodeId }
                 .map { targetPartition ->
-                    client.getAbs("${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid").send()
+                    val address = (targetPartition.master!!.nodeHttpAddress)!!
+                    val host = URL(address).host
+                    val uri = "/api/rest/pieces/$cid"
+                    val url = "$address$uri"
+                    val headers = generateSignedHeaders(host)
+                    val signature = generateSignature(getPiecesHttpMethod, uri, headers)
+                    val httpHeaders = generateHttpHeaders(headers, signature)
+
+                    client.getAbs(url)
+                        .putHeaders(httpHeaders)
+                        .send()
                         .onItem().transform { res ->
                             return@transform when (res.statusCode()) {
                                 OK.code() -> res.bodyAsJson(Piece::class.java)
@@ -210,9 +220,17 @@ class DdcConsumer(
             metadataManager.getConsumerTargetPartitions(userPubKey, appTopology)
                 .distinctBy { it.master!!.nodeId }
                 .map { targetPartition ->
-                    val url = "${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid/data"
+                    val address = (targetPartition.master!!.nodeHttpAddress)!!
+                    val host = URL(address).host
+                    val uri = "/api/rest/pieces/$cid/data"
+                    val url = "$address$uri"
+                    val headers = generateSignedHeaders(host)
+                    val signature = generateSignature(getPiecesHttpMethod, uri, headers)
+                    val httpHeaders = generateHttpHeaders(headers, signature)
+
                     val chunkStream = ChunkStream()
                     client.getAbs(url)
+                        .putHeaders(httpHeaders)
                         .`as`(BodyCodec.pipe(WriteStream.newInstance(chunkStream)))
                         .send()
                         .onItem().transform { res ->
@@ -384,8 +402,8 @@ class DdcConsumer(
         )
     }
 
-    private fun generateSignature(httpMethod: String, path: String, headers: List<HttpHeader>): String {
-        val data = httpMethod + path +  headers.joinToString("") { header -> header.value }
+    private fun generateSignature(httpMethod: String, uri: String, headers: List<HttpHeader>): String {
+        val data = httpMethod + uri +  headers.joinToString("") { header -> header.value }
         return Hex.encode(signer.sign(data.toByteArray()))
     }
 
