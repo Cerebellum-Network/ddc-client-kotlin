@@ -109,6 +109,7 @@ class DdcConsumer(
                     log.debug("Fetching app pieces (url=$url)")
                     client.getAbs(url)
                         .putHeaders(httpHeaders)
+                        .`as`(BodyCodec.jsonStream(parser))
                         .send()
                         .subscribe().with({ res ->
                             if (res.statusCode() == OK.code()) {
