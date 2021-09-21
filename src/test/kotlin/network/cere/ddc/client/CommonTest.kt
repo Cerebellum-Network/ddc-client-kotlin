@@ -16,8 +16,6 @@ import network.cere.ddc.client.producer.ProducerConfig
 import org.junit.jupiter.api.Test
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlin.test.assertEquals
 
@@ -57,7 +55,8 @@ internal class CommonTest {
                 appPubKey = appPubKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500
+                updateAppTopologyIntervalMs = 500,
+                appPrivateKey = appPrivKey
             )
         )
 
