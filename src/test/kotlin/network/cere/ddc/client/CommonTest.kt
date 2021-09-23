@@ -53,10 +53,10 @@ internal class CommonTest {
         val ddcConsumer = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 

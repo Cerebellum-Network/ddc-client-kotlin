@@ -2,6 +2,7 @@ package network.cere.ddc.client.consumer
 
 data class ConsumerConfig(
     val appPubKey: String,
+    val appPrivateKey: String,
     val bootstrapNodes: List<String>,
     val partitionPollIntervalMs: Int = 5_000,
     // number of threads in partition poll executor (number of partitions to be consumed in parallel)
@@ -9,5 +10,4 @@ data class ConsumerConfig(
     val updateAppTopologyIntervalMs: Int = 30_000,
     val enableAutoCommit: Boolean = true,
     val autoCommitIntervalMs: Int = 5_000,
-    val appPrivateKey: String = "",
 )

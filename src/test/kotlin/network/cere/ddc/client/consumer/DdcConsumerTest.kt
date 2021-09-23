@@ -47,10 +47,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -112,11 +112,11 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             config = ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                autoCommitIntervalMs = 100,
-                appPrivateKey = appPrivateKey
+                autoCommitIntervalMs = 100
             ),
             checkpointer = checkpointer
         )
@@ -172,11 +172,11 @@ internal class DdcConsumerTest {
         val testSubjectAfterFailure = DdcConsumer(
             config = ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                autoCommitIntervalMs = 100,
-                appPrivateKey = appPrivateKey
+                autoCommitIntervalMs = 100
             ),
             checkpointer = checkpointer
         )
@@ -211,11 +211,11 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             config = ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                enableAutoCommit = false,
-                appPrivateKey = appPrivateKey
+                enableAutoCommit = false
             ),
             checkpointer = checkpointer
         )
@@ -270,11 +270,11 @@ internal class DdcConsumerTest {
         val testSubjectAfterFailure = DdcConsumer(
             config = ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                enableAutoCommit = false,
-                appPrivateKey = appPrivateKey
+                enableAutoCommit = false
             ),
             checkpointer = checkpointer
         )
@@ -325,11 +325,11 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             config = ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
-                enableAutoCommit = false,
-                appPrivateKey = appPrivateKey
+                enableAutoCommit = false
             ),
             checkpointer = checkpointer
         )
@@ -388,12 +388,12 @@ internal class DdcConsumerTest {
         val testSubjectAfterFailure = DdcConsumer(
             config = ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
                 updateAppTopologyIntervalMs = 500,
                 autoCommitIntervalMs = 100,
-                enableAutoCommit = false,
-                appPrivateKey = appPrivateKey
+                enableAutoCommit = false
             ),
             checkpointer = checkpointer
         )
@@ -426,10 +426,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf("https://ddc.unavailable-node.network", DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -489,10 +489,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -605,10 +605,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -693,10 +693,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -751,10 +751,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -802,10 +802,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -873,10 +873,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -929,10 +929,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -985,10 +985,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -1057,10 +1057,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
@@ -1100,10 +1100,10 @@ internal class DdcConsumerTest {
         val testSubject = DdcConsumer(
             ConsumerConfig(
                 appPubKey = appPubKey,
+                appPrivateKey = appPrivateKey,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 partitionPollIntervalMs = 500,
-                updateAppTopologyIntervalMs = 500,
-                appPrivateKey = appPrivateKey
+                updateAppTopologyIntervalMs = 500
             )
         )
 
