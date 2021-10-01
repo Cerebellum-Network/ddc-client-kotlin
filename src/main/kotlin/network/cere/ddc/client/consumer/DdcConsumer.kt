@@ -15,6 +15,7 @@ import io.vertx.core.buffer.Buffer
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.core.parsetools.JsonParser
 import io.vertx.mutiny.core.streams.WriteStream
+import io.vertx.mutiny.ext.web.client.HttpRequest
 import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.Partition
@@ -93,10 +94,8 @@ class DdcConsumer(
                         "${partition.master!!.nodeHttpAddress}/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
 
                     log.debug("Fetching app pieces (url=$url)")
-                    val request = client.getAbs(url)
-                    val updatedRequest = if (shouldSignRequest()) requestSigner.signRequest(request, url) else request
 
-                    updatedRequest
+                    buildRequest(url)
                         .`as`(BodyCodec.jsonStream(parser))
                         .send()
                         .subscribe().with({ res ->
@@ -139,10 +138,8 @@ class DdcConsumer(
                         "${partition.master!!.nodeHttpAddress}/api/rest/pieces?userPubKey=$userPubKey&appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
 
                     log.debug("Fetching user pieces (url=$url)")
-                    val request = client.getAbs(url)
-                    val updatedRequest = if (shouldSignRequest()) requestSigner.signRequest(request, url) else request
 
-                    updatedRequest
+                    buildRequest(url)
                         .`as`(BodyCodec.jsonStream(parser))
                         .send()
                         .subscribe().with({ res ->
@@ -167,10 +164,8 @@ class DdcConsumer(
                 .distinctBy { it.master!!.nodeId }
                 .map { targetPartition ->
                     val url = "${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid"
-                    val request = client.getAbs(url)
-                    val updatedRequest = if (shouldSignRequest()) requestSigner.signRequest(request, url) else request
 
-                    updatedRequest
+                    buildRequest(url)
                         .send()
                         .onItem().transform { res ->
                             return@transform when (res.statusCode()) {
@@ -202,11 +197,9 @@ class DdcConsumer(
                 .distinctBy { it.master!!.nodeId }
                 .map { targetPartition ->
                     val url = "${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid/data"
-                    val request = client.getAbs(url)
-                    val updatedRequest = if (shouldSignRequest()) requestSigner.signRequest(request, url) else request
                     val chunkStream = ChunkStream()
 
-                    updatedRequest
+                    buildRequest(url)
                         .`as`(BodyCodec.pipe(WriteStream.newInstance(chunkStream)))
                         .send()
                         .onItem().transform { res ->
@@ -360,6 +353,15 @@ class DdcConsumer(
         val createdBeforeEndOfTimeRange = partitionTopology.createdAt!! < to
         val activeOrSealedAfterStartOfTimeRange = partitionTopology.active || partitionTopology.updatedAt!! > from
         return createdBeforeEndOfTimeRange && activeOrSealedAfterStartOfTimeRange
+    }
+
+    private fun buildRequest(url: String): HttpRequest<io.vertx.mutiny.core.buffer.Buffer> {
+        val request = client.getAbs(url)
+        return if (shouldSignRequest()) {
+            requestSigner.signRequest(request, url)
+        } else {
+            request
+        }
     }
 
     // TODO: change this to retrieve config from Smart Contract

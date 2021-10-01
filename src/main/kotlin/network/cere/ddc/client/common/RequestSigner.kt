@@ -6,6 +6,7 @@ import io.vertx.mutiny.core.MultiMap
 import io.vertx.mutiny.core.buffer.Buffer
 import io.vertx.mutiny.ext.web.client.HttpRequest
 import java.net.URL
+import java.time.Duration
 import java.time.Instant
 
 class RequestSigner(
@@ -15,14 +16,14 @@ class RequestSigner(
 
     private val signer = Ed25519Sign(Hex.decode(privateKey.removePrefix("0x")).sliceArray(0 until 32))
 
-    fun signRequest(request: HttpRequest<Buffer>, url: String, httpMethod: String = "GET", requestExpiration: Long = 300L): HttpRequest<Buffer> {
+    fun signRequest(request: HttpRequest<Buffer>, url: String, httpMethod: HttpMethod = Get(), requestExpiration: Duration = Duration.ofSeconds(300L)): HttpRequest<Buffer> {
         val urlObject = URL(url)
         val headers = listOf(
             HttpHeader("Host", urlObject.host),
-            HttpHeader("Expires", Instant.now().plusSeconds(requestExpiration).toString())
+            HttpHeader("Expires", Instant.now().plusSeconds(requestExpiration.toSeconds()).toString())
         )
         val queryString = if (urlObject.query == null) "" else urlObject.query
-        val data = httpMethod + urlObject.path + queryString +  headers.joinToString("") { header -> header.value }
+        val data = httpMethod.getMethodName() + urlObject.path + queryString +  headers.joinToString("") { header -> header.value }
         val signature = Hex.encode(signer.sign(data.toByteArray()))
         val headerList = headers.joinToString(";") { header -> header.name }
         val authorizationHeader = "Credential=${publicKey},SignedHeaders=$headerList,Signature=$signature"

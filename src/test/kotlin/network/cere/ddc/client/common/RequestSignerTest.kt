@@ -24,13 +24,13 @@ internal class RequestSignerTest {
     private val authorizationHeader: String = signedRequest.headers().get("Authorization")
     private val hostHeader = signedRequest.headers().get("Host")
     private val expirationHeader = signedRequest.headers().get("Expires")
+    private val verifier = Ed25519Verify(Hex.decode(appPubKey.removePrefix("0x")).sliceArray(0 until 32))
 
     @Test
     fun `RequestSigner - signature verification should succeed`() {
         val signature = common()
         val headers = hostHeader + expirationHeader
         val data = "GET/api/rest/piecesappPubKey=${appPubKey}&partitionId=testPartitionId$headers"
-        val verifier = Ed25519Verify(Hex.decode(appPubKey.removePrefix("0x")).sliceArray(0 until 32))
         assertDoesNotThrow { verifier.verify(signature, data.toByteArray()) }
     }
 
@@ -39,7 +39,6 @@ internal class RequestSignerTest {
         val signature = common()
         val headers = hostHeader + expirationHeader
         val data = "/api/rest/piecesappPubKey=${appPubKey}&partitionId=testPartitionId$headers" // missing GET
-        val verifier = Ed25519Verify(Hex.decode(appPubKey.removePrefix("0x")).sliceArray(0 until 32))
         assertThrows<GeneralSecurityException> { verifier.verify(signature, data.toByteArray()) }
     }
 
