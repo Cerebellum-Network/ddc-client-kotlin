@@ -16,7 +16,7 @@ class RequestSigner(
 
     private val signer = Ed25519Sign(Hex.decode(privateKey.removePrefix("0x")).sliceArray(0 until 32))
 
-    fun signRequest(request: HttpRequest<Buffer>, url: String, httpMethod: HttpMethod = Get(), requestExpiration: Duration = Duration.ofSeconds(300L)): HttpRequest<Buffer> {
+    fun signRequest(request: HttpRequest<Buffer>, url: String, httpMethod: HttpMethod = Get, requestExpiration: Duration = Duration.ofSeconds(300L)): HttpRequest<Buffer> {
         val urlObject = URL(url)
         val headers = listOf(
             HttpHeader("Host", urlObject.host),

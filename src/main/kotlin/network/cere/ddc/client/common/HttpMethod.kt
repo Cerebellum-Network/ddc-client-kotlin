@@ -4,40 +4,40 @@ sealed class HttpMethod() {
     abstract fun getMethodName(): String
 }
 
-class Get(): HttpMethod() {
-    private val name = "GET"
+object Get: HttpMethod() {
+    private const val name = "GET"
 
     override fun getMethodName(): String {
         return name
     }
 }
 
-class Post(): HttpMethod() {
-    private val name = "POST"
+object Post: HttpMethod() {
+    private const val name = "POST"
 
     override fun getMethodName(): String {
         return name
     }
 }
 
-class Put(): HttpMethod() {
-    private val name = "PUT"
+object Put: HttpMethod() {
+    private const val name = "PUT"
 
     override fun getMethodName(): String {
         return name
     }
 }
 
-class Update(): HttpMethod() {
-    private val name = "UPDATE"
+object Update: HttpMethod() {
+    private const val name = "UPDATE"
 
     override fun getMethodName(): String {
         return name
     }
 }
 
-class Delete(): HttpMethod() {
-    private val name = "DELETE"
+object Delete: HttpMethod() {
+    private const val name = "DELETE"
 
     override fun getMethodName(): String {
         return name
