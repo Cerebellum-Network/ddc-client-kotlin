@@ -7,5 +7,6 @@ data class ProducerConfig(
     val appPrivKey: String,
     val bootstrapNodes: List<String>,
     val retries: Int = 3,
-    val retryBackoff: Duration = Duration.ofMillis(5000)
+    val retryBackoff: Duration = Duration.ofMillis(5000),
+    val connectionNodesCacheSize: Int = 20
 )

@@ -39,7 +39,7 @@ class DdcConsumer(
 
     private val client: WebClient = WebClient.create(vertx)
 
-    private val metadataManager: MetadataManager = MetadataManager(config.bootstrapNodes, client)
+    private val metadataManager: MetadataManager = MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
     // <streamId + partitionId> to subscription
     private val partitionSubscriptions = HashMap<String, Cancellable>()

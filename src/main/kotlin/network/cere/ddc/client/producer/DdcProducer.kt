@@ -15,7 +15,6 @@ import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
 import java.lang.RuntimeException
-import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 
 class DdcProducer(
@@ -27,7 +26,7 @@ class DdcProducer(
 
     private val client: WebClient = WebClient.create(vertx)
 
-    private val metadataManager = MetadataManager(config.bootstrapNodes, client)
+    private val metadataManager = MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
     private val appTopology: AtomicReference<AppTopology> = AtomicReference()
 
