@@ -22,6 +22,7 @@ import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import kotlin.collections.HashMap
 import kotlin.concurrent.schedule
@@ -50,6 +51,8 @@ class DdcConsumer(
     private val executor = Executors.newFixedThreadPool(config.partitionPollExecutorSize)
 
     private var appTopology: AppTopology
+
+    private val failedPartitionIds = ConcurrentLinkedQueue<String>()
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
@@ -251,21 +254,20 @@ class DdcConsumer(
         partitionTopology: PartitionTopology,
     ) {
         log.debug("Going to start consuming the partition (streamId=${stream.id}, partitionId=${partitionTopology.partitionId})")
-        var freshTopology = partitionTopology
-        val checkpointKey = "${config.appPubKey}:${freshTopology.partitionId}:${stream.id}"
+        val checkpointKey = "${config.appPubKey}:${partitionTopology.partitionId}:${stream.id}"
         var checkpointValue = checkpointer.getCheckpoint(checkpointKey)
 
         val pollPartition = Uni.createFrom().item {
-            val node = freshTopology.master!!.nodeHttpAddress
+            val node = partitionTopology.master!!.nodeHttpAddress
             var url =
-                "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${freshTopology.partitionId}"
+                "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
 
             if (checkpointValue == null) {
                 checkpointValue = when (stream.offsetReset) {
                     OffsetReset.EARLIEST -> "1"
                     OffsetReset.LATEST -> {
                         val partitionUrl =
-                            "$node/api/rest/partitions/${freshTopology.partitionId}?appPubKey=${config.appPubKey}"
+                            "$node/api/rest/partitions/${partitionTopology.partitionId}?appPubKey=${config.appPubKey}"
                         val partition = client.getAbs(partitionUrl)
                             .`as`(BodyCodec.json(Partition::class.java))
                             .sendAndAwait()
@@ -283,7 +285,7 @@ class DdcConsumer(
             val parser = JsonParser.newParser().objectValueMode().handler { event ->
                 val piece = event.mapTo(Piece::class.java)
                 checkpointValue = (piece.offset!! + 1).toString()
-                val consumerRecord = ConsumerRecord(piece, freshTopology.partitionId!!, checkpointValue!!)
+                val consumerRecord = ConsumerRecord(piece, partitionTopology.partitionId!!, checkpointValue!!)
                 stream.processor.onNext(consumerRecord)
             }
 
@@ -301,12 +303,6 @@ class DdcConsumer(
                     log.error("Error on streaming data from DDC from URL $url", e)
                 }.await().indefinitely()
         }
-            .onFailure().invoke { ->
-                freshTopology = metadataManager.getAppTopology(config.appPubKey).partitions
-                    ?.find { it.partitionId == freshTopology.partitionId }
-                    ?: throw NoSuchElementException("Partition with id=${freshTopology.partitionId} doesn't exist after refresh appTopology")
-            }
-            .onFailure().retry().withBackOff(config.retryBackoff).expireIn(config.retryExpiration.toMillis())
 
         val pollPartitionUntilSealedWithInterval = pollPartition.onItem()
             .delayIt().by(partitionPollInterval)
@@ -316,17 +312,20 @@ class DdcConsumer(
         val partitionSubscription = pollPartitionUntilSealedWithInterval.subscribe()
             .with(
                 { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
-                { e -> log.error("Partition poll failure", e) },
                 {
-                    log.debug("Sealed partition is completely consumed (partitionId=${freshTopology.partitionId})")
+                    log.warn("Partition poll for id=${partitionTopology.partitionId} failed")
+                    failedPartitionIds.add(partitionTopology.partitionId)
+                },
+                {
+                    log.debug("Sealed partition is completely consumed (partitionId=${partitionTopology.partitionId})")
                 }
             )
 
-        partitionSubscriptions[stream.id + freshTopology.partitionId] = partitionSubscription
+        partitionSubscriptions[stream.id + partitionTopology.partitionId] = partitionSubscription
     }
 
     private fun updateAppTopology() {
-        val partitionIds = appTopology.partitions!!.map { it.partitionId }
+        val partitionIds = appTopology.partitions!!.map { it.partitionId } - generateSequence { failedPartitionIds.poll() }
 
         val updatedAppTopology = metadataManager.getAppTopology(config.appPubKey)
         val newPartitions = updatedAppTopology.partitions!!.filterNot { partitionIds.contains(it.partitionId) }
