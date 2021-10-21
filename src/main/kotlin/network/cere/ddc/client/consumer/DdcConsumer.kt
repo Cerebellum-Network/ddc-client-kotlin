@@ -314,6 +314,8 @@ class DdcConsumer(
                 { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
                 {
                     log.warn("Partition poll for id=${partitionTopology.partitionId} failed")
+
+                    partitionSubscriptions.remove(stream.id + partitionTopology.partitionId)
                     failedPartitionIds.add(partitionTopology.partitionId)
                 },
                 {
