@@ -3,25 +3,23 @@ package network.cere.ddc.client.consumer
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Multi
-import io.vertx.core.json.jackson.DatabindCodec
-import org.slf4j.LoggerFactory
-import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
-import network.cere.ddc.client.api.AppTopology
-import network.cere.ddc.client.consumer.checkpointer.Checkpointer
-import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
-
 import io.smallrye.mutiny.Uni
+import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
 import io.smallrye.mutiny.subscription.Cancellable
 import io.vertx.core.buffer.Buffer
+import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.core.parsetools.JsonParser
 import io.vertx.mutiny.core.streams.WriteStream
 import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
+import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.api.Partition
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
-import java.lang.RuntimeException
+import network.cere.ddc.client.consumer.checkpointer.Checkpointer
+import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
+import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.Executors
@@ -39,7 +37,8 @@ class DdcConsumer(
 
     private val client: WebClient = WebClient.create(vertx)
 
-    private val metadataManager: MetadataManager = MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
+    private val metadataManager: MetadataManager =
+        MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
     // <streamId + partitionId> to subscription
     private val partitionSubscriptions = HashMap<String, Cancellable>()
@@ -160,7 +159,7 @@ class DdcConsumer(
                 .map { targetPartition ->
                     client.getAbs("${targetPartition.master!!.nodeHttpAddress}/api/rest/pieces/$cid").send()
                         .onItem().transform { res ->
-                            return@transform when (res.statusCode()) {
+                            when (res.statusCode()) {
                                 OK.code() -> res.bodyAsJson(Piece::class.java)
                                 NOT_FOUND.code() -> {
                                     log.warn("Not found (body=${res.bodyAsString()})")
@@ -194,7 +193,7 @@ class DdcConsumer(
                         .`as`(BodyCodec.pipe(WriteStream.newInstance(chunkStream)))
                         .send()
                         .onItem().transform { res ->
-                            return@transform when (res.statusCode()) {
+                            when (res.statusCode()) {
                                 OK.code() -> {
                                     chunkStream
                                 }
@@ -252,20 +251,21 @@ class DdcConsumer(
         partitionTopology: PartitionTopology,
     ) {
         log.debug("Going to start consuming the partition (streamId=${stream.id}, partitionId=${partitionTopology.partitionId})")
-        val checkpointKey = "${config.appPubKey}:${partitionTopology.partitionId}:${stream.id}"
+        var freshTopology = partitionTopology
+        val checkpointKey = "${config.appPubKey}:${freshTopology.partitionId}:${stream.id}"
         var checkpointValue = checkpointer.getCheckpoint(checkpointKey)
 
         val pollPartition = Uni.createFrom().item {
-            val node = partitionTopology.master!!.nodeHttpAddress
+            val node = freshTopology.master!!.nodeHttpAddress
             var url =
-                "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
+                "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${freshTopology.partitionId}"
 
             if (checkpointValue == null) {
                 checkpointValue = when (stream.offsetReset) {
                     OffsetReset.EARLIEST -> "1"
                     OffsetReset.LATEST -> {
                         val partitionUrl =
-                            "$node/api/rest/partitions/${partitionTopology.partitionId}?appPubKey=${config.appPubKey}"
+                            "$node/api/rest/partitions/${freshTopology.partitionId}?appPubKey=${config.appPubKey}"
                         val partition = client.getAbs(partitionUrl)
                             .`as`(BodyCodec.json(Partition::class.java))
                             .sendAndAwait()
@@ -283,7 +283,7 @@ class DdcConsumer(
             val parser = JsonParser.newParser().objectValueMode().handler { event ->
                 val piece = event.mapTo(Piece::class.java)
                 checkpointValue = (piece.offset!! + 1).toString()
-                val consumerRecord = ConsumerRecord(piece, partitionTopology.partitionId!!, checkpointValue!!)
+                val consumerRecord = ConsumerRecord(piece, freshTopology.partitionId!!, checkpointValue!!)
                 stream.processor.onNext(consumerRecord)
             }
 
@@ -301,6 +301,12 @@ class DdcConsumer(
                     log.error("Error on streaming data from DDC from URL $url", e)
                 }.await().indefinitely()
         }
+            .onFailure().invoke { ->
+                freshTopology = metadataManager.getAppTopology(config.appPubKey).partitions
+                    ?.find { it.partitionId == freshTopology.partitionId }
+                    ?: throw NoSuchElementException("Partition with id=${freshTopology.partitionId} doesn't exist after refresh appTopology")
+            }
+            .onFailure().retry().withBackOff(config.retryBackoff).expireIn(config.retryExpiration.toMillis())
 
         val pollPartitionUntilSealedWithInterval = pollPartition.onItem()
             .delayIt().by(partitionPollInterval)
@@ -312,11 +318,11 @@ class DdcConsumer(
                 { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
                 { e -> log.error("Partition poll failure", e) },
                 {
-                    log.debug("Sealed partition is completely consumed (partitionId=${partitionTopology.partitionId})")
+                    log.debug("Sealed partition is completely consumed (partitionId=${freshTopology.partitionId})")
                 }
             )
 
-        partitionSubscriptions[stream.id + partitionTopology.partitionId] = partitionSubscription
+        partitionSubscriptions[stream.id + freshTopology.partitionId] = partitionSubscription
     }
 
     private fun updateAppTopology() {

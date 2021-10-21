@@ -44,10 +44,11 @@ class DdcProducer(
         return Uni.createFrom().deferred {
             val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, appTopology.get())
             client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
-        }.onFailure().invoke(Runnable { updateAppTopology() })
+        }
+            .onFailure().invoke { -> updateAppTopology() }
             .onFailure().retry().withBackOff(config.retryBackoff)
             .expireIn(config.retryExpiration.toMillis())
-            .map { res ->
+            .onItem().transform { res ->
                 when (res.statusCode()) {
                     CREATED.code() -> res.bodyAsJson(SendPieceResponse::class.java)
                     CONFLICT.code() -> {

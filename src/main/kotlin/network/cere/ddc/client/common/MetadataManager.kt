@@ -20,6 +20,8 @@ class MetadataManager(
     private val connectionNodesCacheSize: Int,
 ) {
 
+    private val log = LoggerFactory.getLogger(javaClass)
+
     private val addressesDeque = ConcurrentLinkedDeque<String>()
     private val addressesSet = ConcurrentSkipListSet<String>()
 
@@ -28,17 +30,14 @@ class MetadataManager(
         addressesDeque.addAll(addressesSet)
     }
 
-
-    private val log = LoggerFactory.getLogger(javaClass)
-
     fun getAppTopology(appPubKey: String): AppTopology {
-        val appTopology = Uni.createFrom().deferred {
+        val appTopologyUni = Uni.createFrom().deferred {
             val address = addressesDeque.peek()
             client.getAbs("$address/api/rest/apps/${appPubKey}/topology")
                 .`as`(BodyCodec.json(AppTopology::class.java)).send()
                 .onFailure().transform { AppTopologyLoadException("Can't connect to node", address, it) }
-                .map { address to it }
-        }.map { pair ->
+                .onItem().transform { address to it }
+        }.onItem().transform { pair ->
             if (pair.second.statusCode() != HttpResponseStatus.OK.code()) {
                 throw AppTopologyLoadException(
                     "Bad response from node (statusCode=${pair.second.statusCode()}, body=${pair.second.bodyAsString()})",
@@ -48,6 +47,8 @@ class MetadataManager(
 
             pair.second.body()
         }
+
+        val appTopologyFailResistedUni = appTopologyUni
             .onFailure(AppTopologyLoadException::class.java).invoke { ex ->
                 val exception = ex as AppTopologyLoadException
                 log.warn("Can't load app topology from node (address=${exception.address}, issue='${exception.message}')")
@@ -56,11 +57,10 @@ class MetadataManager(
             .onFailure().retry().atMost(max(retries.toLong(), 1) * addressesSet.size)
             .onFailure().transform { ex -> AppTopologyLoadException("App topology is not available from nodes", ex) }
             .onFailure().invoke { ex -> log.error("Couldn't load App from any node", ex) }
+
+        return appTopologyFailResistedUni
+            .onItem().invoke { topology -> updateNodeAddresses(topology) }
             .runSubscriptionOn { Thread(it).start() }.await().indefinitely()
-
-        updateNodeAddresses(appTopology)
-
-        return appTopology
     }
 
     fun getProducerTargetNode(userPubKey: String, appTopology: AppTopology): String? {
