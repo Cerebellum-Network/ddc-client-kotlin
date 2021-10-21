@@ -22,6 +22,7 @@ import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import kotlin.collections.HashMap
@@ -42,9 +43,9 @@ class DdcConsumer(
         MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
     // <streamId + partitionId> to subscription
-    private val partitionSubscriptions = HashMap<String, Cancellable>()
+    private val partitionSubscriptions = ConcurrentHashMap<String, Cancellable>()
 
-    private val streams = HashMap<String, Stream>()
+    private val streams = ConcurrentHashMap<String, Stream>()
 
     private val uncommittedCheckpoints = HashMap<String, String>()
 
@@ -57,7 +58,7 @@ class DdcConsumer(
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
 
-        appTopology = metadataManager.getAppTopology(config.appPubKey)
+        appTopology = metadataManager.getAppTopology(config.appPubKey).await().indefinitely()
 
         Timer("updateAppTopology").schedule(0, config.updateAppTopologyIntervalMs.toLong()) { updateAppTopology() }
 
@@ -67,7 +68,14 @@ class DdcConsumer(
     }
 
     override fun consume(streamId: String, fields: List<String>, offsetReset: OffsetReset): Multi<ConsumerRecord> {
-        return streams.getOrPut(streamId, { initializeStream(streamId, fields, offsetReset) }).processor
+        return metadataManager.getAppTopology(config.appPubKey)
+            .onItem().transform { item ->
+                val stream = streams.getOrPut(streamId) { Stream(streamId, UnicastProcessor.create(), fields, offsetReset) }
+                item.partitions!!.forEach { partitionTopology -> consumePartition(stream, partitionTopology) }
+
+                stream
+            }.memoize().indefinitely()
+            .onItem().transformToMulti { it.processor }
     }
 
     override fun getAppPieces(from: String, to: String, fields: List<String>): Multi<Piece> {
@@ -79,37 +87,36 @@ class DdcConsumer(
         if (fields.isNotEmpty()) {
             pathQuery += "&fields=" + fields.joinToString(",")
         }
-
-        return Multi.createBy().merging().streams(
-            metadataManager.getAppTopology(config.appPubKey).partitions!!
-                .filter { partitionMatchesTimeRange(it, from, to) }
-                .map { partition ->
-                    val stream = UnicastProcessor.create<Piece>()
-                    val parser = JsonParser.newParser().objectValueMode().handler { event ->
-                        stream.onNext(event.mapTo(Piece::class.java))
-                    }
-
-                    val url =
-                        "${partition.master!!.nodeHttpAddress}/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
-
-                    log.debug("Fetching app pieces (url=$url)")
-                    client.getAbs(url)
-                        .`as`(BodyCodec.jsonStream(parser))
-                        .send()
-                        .subscribe().with({ res ->
-                            if (res.statusCode() == OK.code()) {
-                                log.debug("App pieces successfully fetched (url=$url)")
-                                stream.onComplete()
-                            } else {
-                                log.debug("Failed to fetch app pieces (url=$url, statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
-                                stream.onFailure()
-                            }
-                        }, { e ->
-                            log.error("Failed to fetch app pieces (url=$url)", e)
-                        })
-                    stream
+        return metadataManager.getAppTopology(config.appPubKey)
+            .onItem().transformToMulti { topology ->
+                Multi.createFrom().iterable(topology.partitions!!.filter { partitionMatchesTimeRange(it, from, to) })
+            }.cache()
+            .flatMap { partition ->
+                val stream = UnicastProcessor.create<Piece>()
+                val parser = JsonParser.newParser().objectValueMode().handler { event ->
+                    stream.onNext(event.mapTo(Piece::class.java))
                 }
-        )
+
+                val url =
+                    "${partition.master!!.nodeHttpAddress}/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partition.partitionId}" + pathQuery
+
+                log.debug("Fetching app pieces (url=$url)")
+                client.getAbs(url)
+                    .`as`(BodyCodec.jsonStream(parser))
+                    .send()
+                    .subscribe().with({ res ->
+                        if (res.statusCode() == OK.code()) {
+                            log.debug("App pieces successfully fetched (url=$url)")
+                            stream.onComplete()
+                        } else {
+                            log.debug("Failed to fetch app pieces (url=$url, statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
+                            stream.onFailure()
+                        }
+                    }, { e ->
+                        log.error("Failed to fetch app pieces (url=$url)", e)
+                    })
+                stream
+            }
     }
 
     override fun getUserPieces(userPubKey: String, from: String, to: String, fields: List<String>): Multi<Piece> {
@@ -239,16 +246,6 @@ class DdcConsumer(
         }
     }
 
-    private fun initializeStream(streamId: String, fields: List<String>, offsetReset: OffsetReset): Stream {
-        val stream = Stream(streamId, UnicastProcessor.create(), fields, offsetReset)
-        streams[streamId] = stream
-
-        metadataManager.getAppTopology(config.appPubKey).partitions!!.forEach { partitionTopology ->
-            consumePartition(stream, partitionTopology)
-        }
-        return stream
-    }
-
     private fun consumePartition(
         stream: Stream,
         partitionTopology: PartitionTopology,
@@ -309,13 +306,15 @@ class DdcConsumer(
             .runSubscriptionOn(executor)
             .repeat().until { it.statusCode() == NO_CONTENT.code() }
 
+        val partitionSubscriptionKey = stream.id + partitionTopology.partitionId
+
         val partitionSubscription = pollPartitionUntilSealedWithInterval.subscribe()
             .with(
                 { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
                 {
                     log.warn("Partition poll for id=${partitionTopology.partitionId} failed")
 
-                    partitionSubscriptions.remove(stream.id + partitionTopology.partitionId)
+                    partitionSubscriptions.remove(partitionSubscriptionKey)
                     failedPartitionIds.add(partitionTopology.partitionId)
                 },
                 {
@@ -323,17 +322,18 @@ class DdcConsumer(
                 }
             )
 
-        partitionSubscriptions[stream.id + partitionTopology.partitionId] = partitionSubscription
+        partitionSubscriptions[partitionSubscriptionKey] = partitionSubscription
     }
 
     private fun updateAppTopology() {
-        val partitionIds = appTopology.partitions!!.map { it.partitionId } - generateSequence { failedPartitionIds.poll() }
+        val partitionIds =
+            appTopology.partitions!!.map { it.partitionId } - generateSequence { failedPartitionIds.poll() }
 
-        val updatedAppTopology = metadataManager.getAppTopology(config.appPubKey)
+        val updatedAppTopology = metadataManager.getAppTopology(config.appPubKey).await().indefinitely()
         val newPartitions = updatedAppTopology.partitions!!.filterNot { partitionIds.contains(it.partitionId) }
 
         if (newPartitions.isNotEmpty()) {
-            log.debug("${newPartitions.size} new partitions found")
+            log.debug("${newPartitions.size} partitions found for consuming")
             streams.values.forEach { stream ->
                 newPartitions.forEach { partitionTopology ->
                     consumePartition(stream, partitionTopology)

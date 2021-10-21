@@ -30,7 +30,7 @@ class MetadataManager(
         addressesDeque.addAll(addressesSet)
     }
 
-    fun getAppTopology(appPubKey: String): AppTopology {
+    fun getAppTopology(appPubKey: String): Uni<AppTopology> {
         val appTopologyUni = Uni.createFrom().deferred {
             val address = addressesDeque.peek()
             client.getAbs("$address/api/rest/apps/${appPubKey}/topology")
@@ -55,12 +55,14 @@ class MetadataManager(
                 exception.address?.also { moveAddressToLast(it) }
             }
             .onFailure().retry().atMost(max(retries.toLong(), 1) * addressesSet.size)
-            .onFailure().transform { ex -> AppTopologyLoadException("App topology is not available from nodes", ex) }
-            .onFailure().invoke { ex -> log.error("Couldn't load App from any node", ex) }
+            .onFailure().transform { ex ->
+                AppTopologyLoadException("App topology is not available from nodes", ex)
+                    .also { log.error("Couldn't load App from any node", it) }
+            }
 
         return appTopologyFailResistedUni
             .onItem().invoke { topology -> updateNodeAddresses(topology) }
-            .runSubscriptionOn { Thread(it).start() }.await().indefinitely()
+            .memoize().indefinitely()
     }
 
     fun getProducerTargetNode(userPubKey: String, appTopology: AppTopology): String? {

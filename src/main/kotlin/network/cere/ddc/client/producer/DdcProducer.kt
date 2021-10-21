@@ -15,6 +15,7 @@ import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
 import java.util.concurrent.atomic.AtomicReference
+import java.util.function.Predicate
 
 class DdcProducer(
     private val config: ProducerConfig,
@@ -35,17 +36,18 @@ class DdcProducer(
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
 
-        updateAppTopology()
+        updateAppTopology().await().indefinitely()
     }
 
     override fun send(piece: Piece): Uni<SendPieceResponse> {
         sign(piece)
+        val failurePredicate = Predicate<Throwable> { it is InvalidAppTopologyException || it is InsufficientNetworkCapacityException }
 
         return Uni.createFrom().deferred {
             val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, appTopology.get())
             client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
         }
-            .onFailure().invoke { -> updateAppTopology() }
+            .onFailure().call { -> updateAppTopology() }
             .onFailure().retry().withBackOff(config.retryBackoff).expireIn(config.retryExpiration.toMillis())
             .onItem().transform { res ->
                 when (res.statusCode()) {
@@ -56,12 +58,10 @@ class DdcProducer(
                     }
                     MISDIRECTED_REQUEST.code() -> {
                         log.warn("Invalid local app topology")
-                        updateAppTopology()
                         throw InvalidAppTopologyException()
                     }
                     INSUFFICIENT_STORAGE.code() -> {
                         log.warn("Insufficient network capacity")
-                        updateAppTopology()
                         throw InsufficientNetworkCapacityException()
                     }
                     SERVICE_UNAVAILABLE.code() -> {
@@ -74,17 +74,22 @@ class DdcProducer(
                     }
                 }
             }
-            .onFailure { it is InvalidAppTopologyException || it is InsufficientNetworkCapacityException }.retry()
+            .onFailure(failurePredicate).call { -> updateAppTopology() }
+            .onFailure(failurePredicate).retry()
             .atMost(1)
             .onFailure().retry().withBackOff(config.retryBackoff).atMost(config.retries.toLong())
     }
 
-    private fun updateAppTopology() {
-        log.info("Updating app topology")
-        val topology = metadataManager.getAppTopology(config.appPubKey)
+    private fun updateAppTopology(): Uni<AppTopology> {
+       return Uni.createFrom().deferred {
+            log.info("Updating app topology")
 
-        log.debug("Topology received:\n${topology}")
-        appTopology.set(topology)
+            metadataManager.getAppTopology(config.appPubKey)
+                .onItem().invoke { item ->
+                    log.debug("Topology received:\n{}", item)
+                    appTopology.set(item)
+                }
+        }
     }
 
     private fun sign(piece: Piece) {
