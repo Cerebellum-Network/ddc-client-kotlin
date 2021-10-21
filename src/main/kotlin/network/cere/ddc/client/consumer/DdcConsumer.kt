@@ -22,6 +22,7 @@ import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import kotlin.collections.HashMap
@@ -42,7 +43,7 @@ class DdcConsumer(
         MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
     // <streamId + partitionId> to subscription
-    private val partitionSubscriptions = HashMap<String, Cancellable>()
+    private val partitionSubscriptions = ConcurrentHashMap<String, Cancellable>()
 
     private val streams = HashMap<String, Stream>()
 
