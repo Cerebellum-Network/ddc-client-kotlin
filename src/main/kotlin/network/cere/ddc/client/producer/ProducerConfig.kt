@@ -9,5 +9,6 @@ data class ProducerConfig(
     val retries: Int = 3,
     val retryBackoff: Duration = Duration.ofMillis(5000),
     val connectionNodesCacheSize: Int = 20,
-    val retryExpiration: Duration = Duration.ofMinutes(6)
+    val connectionRetryBackOff: Duration = Duration.ofMillis(100),
+    val retryExpiration: Duration = Duration.ofSeconds(2)
 )

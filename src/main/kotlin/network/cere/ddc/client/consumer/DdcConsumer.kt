@@ -23,7 +23,6 @@ import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.ConcurrentLinkedQueue
 import java.util.concurrent.Executors
 import kotlin.collections.HashMap
 import kotlin.concurrent.schedule
@@ -52,8 +51,6 @@ class DdcConsumer(
     private val executor = Executors.newFixedThreadPool(config.partitionPollExecutorSize)
 
     private var appTopology: AppTopology
-
-    private val failedPartitionIds = ConcurrentLinkedQueue<String>()
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
@@ -304,6 +301,7 @@ class DdcConsumer(
                     log.error("Error on streaming data from DDC from URL $url", e)
                 }.await().indefinitely()
         }
+            .onFailure().retry().withBackOff(config.minRetryBackOff, config.maxRetryBackOff).indefinitely()
 
         val pollPartitionUntilSealedWithInterval = pollPartition.onItem()
             .delayIt().by(partitionPollInterval)
@@ -313,12 +311,7 @@ class DdcConsumer(
         val partitionSubscription = pollPartitionUntilSealedWithInterval.subscribe()
             .with(
                 { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
-                {
-                    log.warn("Partition poll for id=${partitionTopology.partitionId} failed")
-
-                    partitionSubscriptions.remove(stream.id + partitionTopology.partitionId)
-                    failedPartitionIds.add(partitionTopology.partitionId)
-                },
+                { e -> log.error("Partition poll failure", e) },
                 {
                     log.debug("Sealed partition is completely consumed (partitionId=${partitionTopology.partitionId})")
                 }
@@ -328,7 +321,7 @@ class DdcConsumer(
     }
 
     private fun updateAppTopology() {
-        val partitionIds = appTopology.partitions!!.map { it.partitionId } - generateSequence { failedPartitionIds.poll() }
+        val partitionIds = appTopology.partitions!!.map { it.partitionId }
 
         val updatedAppTopology = metadataManager.getAppTopology(config.appPubKey)
         val newPartitions = updatedAppTopology.partitions!!.filterNot { partitionIds.contains(it.partitionId) }

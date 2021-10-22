@@ -12,5 +12,7 @@ data class ConsumerConfig(
     val enableAutoCommit: Boolean = true,
     val autoCommitIntervalMs: Int = 5_000,
     val retries: Int = 3,
-    val connectionNodesCacheSize: Int = 20
+    val connectionNodesCacheSize: Int = 20,
+    val minRetryBackOff: Duration = Duration.ofMillis(100),
+    val maxRetryBackOff: Duration = Duration.ofSeconds(10)
 )
