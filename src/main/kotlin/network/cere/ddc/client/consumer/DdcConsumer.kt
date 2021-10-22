@@ -74,8 +74,7 @@ class DdcConsumer(
                 item.partitions!!.forEach { partitionTopology -> consumePartition(stream, partitionTopology) }
 
                 stream
-            }.memoize().indefinitely()
-            .onItem().transformToMulti { it.processor }
+            }.onItem().transformToMulti { it.processor }
     }
 
     override fun getAppPieces(from: String, to: String, fields: List<String>): Multi<Piece> {

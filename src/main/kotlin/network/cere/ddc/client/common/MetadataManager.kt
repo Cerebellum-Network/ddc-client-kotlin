@@ -32,21 +32,8 @@ class MetadataManager(
 
     fun getAppTopology(appPubKey: String): Uni<AppTopology> {
         val appTopologyUni = Uni.createFrom().deferred {
-            val address = addressesDeque.peek()
-            client.getAbs("$address/api/rest/apps/${appPubKey}/topology")
-                .`as`(BodyCodec.json(AppTopology::class.java)).send()
-                .onFailure().transform { AppTopologyLoadException("Can't connect to node", address, it) }
-                .onItem().transform { address to it }
-        }.onItem().transform { pair ->
-            if (pair.second.statusCode() != HttpResponseStatus.OK.code()) {
-                throw AppTopologyLoadException(
-                    "Bad response from node (statusCode=${pair.second.statusCode()}, body=${pair.second.bodyAsString()})",
-                    pair.first
-                )
-            }
-
-            pair.second.body()
-        }
+            sendRequestAppTopology(appPubKey, addressesDeque.peek())
+        }.onItem().invoke { item -> updateNodeAddresses(item) }
 
         val appTopologyFailResistedUni = appTopologyUni
             .onFailure(AppTopologyLoadException::class.java).invoke { ex ->
@@ -61,8 +48,6 @@ class MetadataManager(
             }
 
         return appTopologyFailResistedUni
-            .onItem().invoke { topology -> updateNodeAddresses(topology) }
-            .memoize().indefinitely()
     }
 
     fun getProducerTargetNode(userPubKey: String, appTopology: AppTopology): String? {
@@ -75,6 +60,21 @@ class MetadataManager(
         val ringToken = CRC32().apply { update(userPubKey.toByteArray()) }.value
         return appTopology.partitions!!.filter { it.sectorStart!! <= ringToken && ringToken <= it.sectorEnd!! }
     }
+
+    private fun sendRequestAppTopology(appPubKey: String, address: String) =
+        client.getAbs("$address/api/rest/apps/${appPubKey}/topology")
+            .`as`(BodyCodec.json(AppTopology::class.java)).send()
+            .onFailure().transform { AppTopologyLoadException("Can't connect to node", address, it) }
+            .onItem().transform { resp ->
+                if (resp.statusCode() != HttpResponseStatus.OK.code()) {
+                    throw AppTopologyLoadException(
+                        "Bad response from node (statusCode=${resp.statusCode()}, body=${resp.bodyAsString()})",
+                        address
+                    )
+                }
+
+                resp.body()
+            }
 
     private fun updateNodeAddresses(appTopology: AppTopology) {
         if (addressesSet.size < connectionNodesCacheSize) {
