@@ -91,7 +91,10 @@ internal class CommonTest {
         userThreads.forEach { it.join() }
 
         //then verify app pieces
-        pieces.forEach { it.offset = 0 } // ignore offsets
+        pieces.forEach {
+            it.offset = 0
+            it.checksum = null
+        } // ignore offsets and checksum
         assertEquals(expectedPieces.toSet(), pieces)
 
         //then verify user pieces
