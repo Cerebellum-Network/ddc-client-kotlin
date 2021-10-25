@@ -19,6 +19,7 @@ import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
 import network.cere.ddc.client.consumer.checkpointer.Checkpointer
 import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
+import network.cere.ddc.client.consumer.exception.PartitionTopologyMissException
 import org.slf4j.LoggerFactory
 import java.time.Duration
 import java.util.*
@@ -254,11 +255,10 @@ class DdcConsumer(
         log.debug("Going to start consuming the partition (streamId=${stream.id}, partitionId=${partitionTopology.partitionId})")
         val checkpointKey = "${config.appPubKey}:${partitionTopology.partitionId}:${stream.id}"
         var checkpointValue = checkpointer.getCheckpoint(checkpointKey)
+        var node = partitionTopology.master!!.nodeHttpAddress
 
         val pollPartition = Uni.createFrom().item {
-            val node = partitionTopology.master!!.nodeHttpAddress
-            var url =
-                "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
+            var url = "$node/api/rest/pieces?appPubKey=${config.appPubKey}&partitionId=${partitionTopology.partitionId}"
 
             if (checkpointValue == null) {
                 checkpointValue = when (stream.offsetReset) {
@@ -301,7 +301,11 @@ class DdcConsumer(
                     log.error("Error on streaming data from DDC from URL $url", e)
                 }.await().indefinitely()
         }
-            .onFailure().retry().withBackOff(config.minRetryBackOff, config.maxRetryBackOff).indefinitely()
+            .onFailure().invoke { ->
+                node = appTopology.partitions?.find { it.partitionId == partitionTopology.partitionId }?.master?.nodeHttpAddress
+                    ?: throw PartitionTopologyMissException("Partition id=${partitionTopology.partitionId} missed from AppTopology")
+            }
+            .onFailure{ it !is PartitionTopologyMissException}.retry().withBackOff(config.minRetryBackOff, config.maxRetryBackOff).indefinitely()
 
         val pollPartitionUntilSealedWithInterval = pollPartition.onItem()
             .delayIt().by(partitionPollInterval)
