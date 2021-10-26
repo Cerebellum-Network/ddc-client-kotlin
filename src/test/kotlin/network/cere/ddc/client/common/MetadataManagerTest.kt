@@ -48,8 +48,24 @@ internal class MetadataManagerTest {
     @Test
     fun `Metadata Manager - getAppTopology with first failed`() {
         //given
+        val firstResp = generateClientScenario(Uni.createFrom().failure(ConnectException()))
+        val secondResp =
+            generateClientScenario(Uni.createFrom().item(generateSuccessResponse(AppTopology(APP_PUB_KEY))))
+        whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doReturn firstResp doReturn secondResp
+
+        //when
+        val result = testSubject.getAppTopology(APP_PUB_KEY)
+
+        //then
+        assertEquals(result, AppTopology(APP_PUB_KEY))
+        verify(client, times(2)).getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")
+    }
+
+    @Test
+    fun `Metadata Manager - getAppTopology with all failed`() {
+        //given
         val clientResp = generateClientScenario(Uni.createFrom().failure(ConnectException()))
-        whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doReturn clientResp
+        whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doAnswer { clientResp }
 
         //when
         val action = { testSubject.getAppTopology(APP_PUB_KEY) }
