@@ -4,6 +4,8 @@ plugins {
     kotlin("jvm") version "1.4.32"
 
     id("com.avast.gradle.docker-compose") version "0.14.3"
+    id("me.champeau.jmh") version "0.6.6"
+    //id("org.jetbrains.kotlinx.benchmark") version "0.3.0"
 
     maven
 }
@@ -17,6 +19,7 @@ repositories {
 
 val vertxVersion = "4.0.3"
 val smallryeMutinyVertx = "2.9.0"
+val junitJupiter = "5.6.0"
 dependencies {
     // Vert.x
     implementation("io.vertx:vertx-lang-kotlin:$vertxVersion")
@@ -27,7 +30,7 @@ dependencies {
     implementation("io.smallrye.reactive:smallrye-mutiny-vertx-web-client:$smallryeMutinyVertx")
 
     // Crypto
-    implementation("com.google.crypto.tink:tink:1.5.0")
+    implementation("org.bouncycastle:bcprov-jdk15on:1.69")
 
     // Slf4j
     implementation("org.slf4j:slf4j-api:1.7.30")
@@ -36,10 +39,11 @@ dependencies {
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.9.8")
 
     testImplementation(kotlin("test-junit5"))
-    testImplementation("org.junit.jupiter:junit-jupiter-api:5.6.0")
-    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.6.0")
-    testImplementation("com.google.crypto.tink:tink:1.5.0")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:$junitJupiter")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitJupiter")
+    testImplementation("org.junit.jupiter:junit-jupiter-params:$junitJupiter")
     testImplementation("ch.qos.logback:logback-classic:1.1.7")
+    testImplementation("com.google.crypto.tink:tink:1.5.0")
 }
 
 tasks {
@@ -60,3 +64,8 @@ tasks {
 dockerCompose {
     useComposeFiles = listOf("docker-compose/docker-compose.yml")
 }
+
+jmh {
+    profilers.add("gc")
+}
+

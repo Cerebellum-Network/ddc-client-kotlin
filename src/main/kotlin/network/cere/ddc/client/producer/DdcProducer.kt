@@ -1,21 +1,18 @@
 package network.cere.ddc.client.producer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.google.crypto.tink.subtle.Ed25519Sign
-import com.google.crypto.tink.subtle.Hex
 import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Uni
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.ext.web.client.WebClient
 import network.cere.ddc.client.api.AppTopology
+import network.cere.ddc.client.common.Ed25519Signer
 import network.cere.ddc.client.common.MetadataManager
 import network.cere.ddc.client.producer.exception.InsufficientNetworkCapacityException
 import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
-import java.lang.RuntimeException
-import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 
 class DdcProducer(
@@ -31,7 +28,7 @@ class DdcProducer(
 
     private val appTopology: AtomicReference<AppTopology> = AtomicReference()
 
-    private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")).sliceArray(0 until 32))
+    private val signer = Ed25519Signer(config.appPrivKey)
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
@@ -88,7 +85,6 @@ class DdcProducer(
 
     private fun sign(piece: Piece) {
         val msg = piece.id + piece.timestamp + piece.appPubKey + piece.userPubKey + piece.data
-        val signature = signer.sign(msg.toByteArray())
-        piece.signature = Hex.encode(signature)
+        piece.signature = signer.sign(msg)
     }
 }
