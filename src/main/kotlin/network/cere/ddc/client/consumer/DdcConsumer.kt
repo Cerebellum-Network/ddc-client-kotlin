@@ -307,19 +307,16 @@ class DdcConsumer(
             .runSubscriptionOn(executor)
             .repeat().until { it.statusCode() == NO_CONTENT.code() }
 
-        val partitionSubscriptionKey = stream.id + partitionTopology.partitionId
-
         val partitionSubscription = pollPartitionUntilSealedWithInterval.subscribe()
             .with(
                 { res -> log.debug("Partition polled (statusCode=${res.statusCode()})") },
-
                 { e -> log.error("Partition poll failure", e) },
                 {
                     log.debug("Sealed partition is completely consumed (partitionId=${partitionTopology.partitionId})")
                 }
             )
 
-        partitionSubscriptions[partitionSubscriptionKey] = partitionSubscription
+        partitionSubscriptions[stream.id + partitionTopology.partitionId] = partitionSubscription
     }
 
     private fun updateAppTopology() {
@@ -329,7 +326,7 @@ class DdcConsumer(
         val newPartitions = updatedAppTopology.partitions!!.filterNot { partitionIds.contains(it.partitionId) }
 
         if (newPartitions.isNotEmpty()) {
-            log.debug("${newPartitions.size} partitions found for consuming")
+            log.debug("${newPartitions.size} new partitions found")
             streams.values.forEach { stream ->
                 newPartitions.forEach { partitionTopology ->
                     consumePartition(stream, partitionTopology)

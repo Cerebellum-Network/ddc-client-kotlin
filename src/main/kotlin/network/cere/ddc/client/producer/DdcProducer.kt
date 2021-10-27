@@ -48,7 +48,7 @@ class DdcProducer(
             client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
         }
             .onFailure().call { -> updateAppTopology() }
-            .onFailure().retry().withBackOff(config.retryBackoff).expireIn(config.retryExpiration.toMillis())
+            .onFailure().retry().withBackOff(config.connectionRetryBackOff).expireIn(config.retryExpiration.toMillis())
             .onItem().transform { res ->
                 when (res.statusCode()) {
                     CREATED.code() -> res.bodyAsJson(SendPieceResponse::class.java)
@@ -75,8 +75,7 @@ class DdcProducer(
                 }
             }
             .onFailure(failurePredicate).call { -> updateAppTopology() }
-            .onFailure(failurePredicate).retry()
-            .atMost(1)
+            .onFailure(failurePredicate).retry().atMost(1)
             .onFailure().retry().withBackOff(config.retryBackoff).atMost(config.retries.toLong())
     }
 
