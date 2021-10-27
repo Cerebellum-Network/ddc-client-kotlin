@@ -14,6 +14,7 @@ import network.cere.ddc.client.producer.exception.InsufficientNetworkCapacityExc
 import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
+import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
 import java.util.function.Predicate
 
@@ -29,24 +30,26 @@ class DdcProducer(
     private val metadataManager =
         MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
-    private val appTopology: AtomicReference<AppTopology> = AtomicReference()
+    private val appTopology: AtomicReference<CompletableFuture<AppTopology>> = AtomicReference()
 
     private val signer = Ed25519Sign(Hex.decode(config.appPrivKey.removePrefix("0x")).sliceArray(0 until 32))
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
 
-        updateAppTopology().await().indefinitely()
+        initializeAppTopology()
     }
 
     override fun send(piece: Piece): Uni<SendPieceResponse> {
         sign(piece)
-        val failurePredicate = Predicate<Throwable> { it is InvalidAppTopologyException || it is InsufficientNetworkCapacityException }
+        val failurePredicate =
+            Predicate<Throwable> { it is InvalidAppTopologyException || it is InsufficientNetworkCapacityException }
 
-        return Uni.createFrom().deferred {
-            val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, appTopology.get())
-            client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
-        }
+        return Uni.createFrom().completionStage { appTopology.get() }
+            .onItem().transformToUni { item ->
+                val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, item)
+                client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
+            }
             .onFailure().call { -> updateAppTopology() }
             .onFailure().retry().withBackOff(config.connectionRetryBackOff).expireIn(config.retryExpiration.toMillis())
             .onItem().transform { res ->
@@ -77,18 +80,30 @@ class DdcProducer(
             .onFailure(failurePredicate).call { -> updateAppTopology() }
             .onFailure(failurePredicate).retry().atMost(1)
             .onFailure().retry().withBackOff(config.retryBackoff).atMost(config.retries.toLong())
+
     }
 
-    private fun updateAppTopology(): Uni<AppTopology> {
-       return Uni.createFrom().deferred {
+    private fun updateAppTopology() =
+        Uni.createFrom().deferred {
             log.info("Updating app topology")
-
             metadataManager.getAppTopology(config.appPubKey)
-                .onItem().invoke { item ->
-                    log.debug("Topology received:\n{}", item)
-                    appTopology.set(item)
-                }
-        }
+        }.onItem().invoke { item ->
+            log.debug("Topology received:\n{}", item)
+            appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage())
+        }.replaceWithVoid()
+
+    private fun initializeAppTopology() {
+        val appTopologyInitialization = Uni.createFrom().deferred {
+            log.debug("Start initializing appTopology")
+            metadataManager.getAppTopology(config.appPubKey)
+        }.onFailure().invoke { ex ->
+            log.warn("Error initializing appTopology", ex)
+            initializeAppTopology()
+        }.onCancellation().invoke { initializeAppTopology() }
+            .onItem().invoke { item -> appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage()) }
+            .subscribeAsCompletionStage()
+
+        appTopology.set(appTopologyInitialization)
     }
 
     private fun sign(piece: Piece) {
