@@ -65,15 +65,15 @@ internal class DdcProducerTest {
         testSubject.send(piece1).await().indefinitely()
         testSubject.send(piece2).await().indefinitely()
 
-        val expectedPieces = setOf(
-            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"{\"event_type\":\"first event\"}","metadata":{"contentType":"bytes","mimeType":"jpg","isEncrypted":true,"encryptionAttributes":{"encryptionAttribute":"value"},"customAttributes":{"customAttribute":"value"}},"offset":1}""",
-            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"{\"event_type\":\"second event\"}","offset":2}""",
-        )
-
         //then
         val pieces = getPieces(appPubKey)
 
         //then
+        val expectedPieces = setOf(
+            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"{\"event_type\":\"first event\"}","metadata":{"contentType":"bytes","mimeType":"jpg","isEncrypted":true,"encryptionAttributes":{"encryptionAttribute":"value"},"customAttributes":{"customAttribute":"value"}},"offset":1,"checksum":"${findChecksumById(pieces, "1")}"}""",
+            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"{\"event_type\":\"second event\"}","offset":2,"checksum":"${findChecksumById(pieces, "2")}"}""".trimMargin(),
+        )
+
         assertEquals(expectedPieces.size, pieces.size)
         assertEquals(expectedPieces, pieces.toSet())
     }
@@ -112,15 +112,15 @@ internal class DdcProducerTest {
         testSubject.send(piece2).await().indefinitely()
         testSubject.send(piece3).await().indefinitely()
 
-        val expectedPieces = mutableSetOf(
-            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"$piece1Data","offset":1}""",
-            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"$piece2Data","offset":2}""",
-            """{"id":"3","appPubKey":"$appPubKey","userPubKey":"user_3","timestamp":"2021-01-01T00:02:00Z","data":"$piece3Data","offset":3}""",
-        )
-
         var pieces = getPieces(appPubKey)
 
         //then
+        val expectedPieces = mutableSetOf(
+            """{"id":"1","appPubKey":"$appPubKey","userPubKey":"user_1","timestamp":"2021-01-01T00:00:00Z","data":"$piece1Data","offset":1,"checksum":"${findChecksumById(pieces, "1")}"}""",
+            """{"id":"2","appPubKey":"$appPubKey","userPubKey":"user_2","timestamp":"2021-01-01T00:01:00Z","data":"$piece2Data","offset":2,"checksum":"${findChecksumById(pieces, "2")}"}""",
+            """{"id":"3","appPubKey":"$appPubKey","userPubKey":"user_3","timestamp":"2021-01-01T00:02:00Z","data":"$piece3Data","offset":3,"checksum":"${findChecksumById(pieces, "3")}"}""",
+        )
+
         assertEquals(expectedPieces, pieces.toSet())
 
         //when next piece triggers partition scaling
@@ -132,7 +132,7 @@ internal class DdcProducerTest {
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"4","appPubKey":"$appPubKey","userPubKey":"user_4","timestamp":"2021-01-01T00:03:00Z","data":"$piece4Data","offset":1}""")
+        expectedPieces.add("""{"id":"4","appPubKey":"$appPubKey","userPubKey":"user_4","timestamp":"2021-01-01T00:03:00Z","data":"$piece4Data","offset":1,"checksum":"${findChecksumById(pieces, "4")}"}""")
         assertEquals(expectedPieces, pieces.toSet())
 
         //when
@@ -144,7 +144,7 @@ internal class DdcProducerTest {
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"5","appPubKey":"$appPubKey","userPubKey":"user_5","timestamp":"2021-01-01T00:04:00Z","data":"$piece5Data","offset":2}""")
+        expectedPieces.add("""{"id":"5","appPubKey":"$appPubKey","userPubKey":"user_5","timestamp":"2021-01-01T00:04:00Z","data":"$piece5Data","offset":2,"checksum":"${findChecksumById(pieces, "5")}"}""")
         assertEquals(expectedPieces, pieces.toSet())
 
         //when
@@ -156,7 +156,7 @@ internal class DdcProducerTest {
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"6","appPubKey":"$appPubKey","userPubKey":"user_6","timestamp":"2021-01-01T00:05:00Z","data":"$piece6Data","offset":3}""")
+        expectedPieces.add("""{"id":"6","appPubKey":"$appPubKey","userPubKey":"user_6","timestamp":"2021-01-01T00:05:00Z","data":"$piece6Data","offset":3,"checksum":"${findChecksumById(pieces, "6")}"}""")
         assertEquals(expectedPieces, pieces.toSet())
 
         //when next piece triggers partition scaling
@@ -168,7 +168,7 @@ internal class DdcProducerTest {
         pieces = getPieces(appPubKey)
 
         //then
-        expectedPieces.add("""{"id":"7","appPubKey":"$appPubKey","userPubKey":"user_7","timestamp":"2021-01-01T00:06:00Z","data":"$piece7Data","offset":1}""")
+        expectedPieces.add("""{"id":"7","appPubKey":"$appPubKey","userPubKey":"user_7","timestamp":"2021-01-01T00:06:00Z","data":"$piece7Data","offset":1,"checksum":"${findChecksumById(pieces, "7")}"}""")
         assertEquals(expectedPieces, pieces.toSet())
     }
 
@@ -209,4 +209,9 @@ internal class DdcProducerTest {
 
         return pieces
     }
+
+    private fun findChecksumById(values: Iterable<String>, id: String) =
+        values.find { it.contains("\"id\":\"$id\"") }
+            ?.let{ """"checksum":"([\W|\w]+)"""".toRegex().find(it)?.groupValues?.get(1) }
+
 }

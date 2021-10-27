@@ -34,6 +34,7 @@ jobs:
             .gradle
           key: ${{ runner.os }}-gradle-${{ hashFiles('**/build.gradle.kts') }}
       - name: Gradle Build
+        timeout-minutes: 60
         run: ./gradlew build
       - name: codecov
         run: bash <(curl -s https://codecov.io/bash)
