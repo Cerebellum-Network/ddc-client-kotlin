@@ -5,7 +5,6 @@ plugins {
 
     id("com.avast.gradle.docker-compose") version "0.14.3"
     id("me.champeau.jmh") version "0.6.6"
-    //id("org.jetbrains.kotlinx.benchmark") version "0.3.0"
 
     maven
 }
@@ -45,6 +44,9 @@ dependencies {
     testImplementation("ch.qos.logback:logback-classic:1.1.7")
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
     testImplementation("com.google.crypto.tink:tink:1.5.0")
+
+    // JMH
+    jmh("net.i2p.crypto:eddsa:0.3.0")
 }
 
 tasks {
