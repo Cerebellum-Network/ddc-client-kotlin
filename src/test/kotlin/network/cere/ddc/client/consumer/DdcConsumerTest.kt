@@ -1,8 +1,6 @@
 package network.cere.ddc.client.consumer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.google.crypto.tink.subtle.Ed25519Sign
-import com.google.crypto.tink.subtle.Hex
 import io.netty.handler.codec.http.HttpResponseStatus.OK
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
@@ -12,8 +10,14 @@ import io.vertx.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 import network.cere.ddc.client.producer.SendPieceResponse
+import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
+import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
+import org.bouncycastle.util.encoders.Hex
 import org.junit.jupiter.api.Test
 import java.lang.Thread.sleep
+import java.security.SecureRandom
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
@@ -36,9 +40,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - consume existing data (positive scenario)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -97,9 +102,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - consumer auto commit enabled (consumer failure)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -193,9 +199,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - consumer auto commit disabled (consumer failure)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -304,9 +311,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - consumer auto commit disabled (use resolveCheckpoint before consumer failure)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -404,9 +412,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - works as expected when one of bootstrap nodes is unavailable`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -465,9 +474,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - streaming ongoing data (positive scenario)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -576,9 +586,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - streaming ongoing data while app scales (positive scenario)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -662,9 +673,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get app pieces (different users)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -718,9 +730,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get app pieces (different users and different partitions)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -767,9 +780,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get app pieces (time filtered)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -836,9 +850,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get user pieces (different users)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -890,9 +905,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get user pieces (different users and different partitions)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -944,9 +960,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get user pieces (time filtered)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -1014,9 +1031,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get piece (different users and different partitions)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -1055,9 +1073,10 @@ internal class DdcConsumerTest {
     @Test
     fun `DDC consumer - get piece data`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -1088,10 +1107,12 @@ internal class DdcConsumerTest {
         assertEquals(data, pieceData)
     }
 
-    private fun createApp(appPubKey: String?, signer: Ed25519Sign) {
+    private fun createApp(appPubKey: String?, signer: Ed25519Signer) {
+        val toSign = "$appPubKey".toByteArray()
+        signer.update(toSign, 0, toSign.size)
         val createAppReq = mapOf(
             "appPubKey" to appPubKey,
-            "signature" to Hex.encode(signer.sign("$appPubKey".toByteArray()))
+            "signature" to Hex.toHexString(signer.generateSignature())
         ).let(::JsonObject)
 
         client.postAbs("$DDC_NODE_URL$API_PREFIX/apps")
@@ -1104,14 +1125,14 @@ internal class DdcConsumerTest {
 
     private fun savePiece(
         appPubKey: String,
-        signer: Ed25519Sign,
+        signer: Ed25519Signer,
         userPubKey: String,
         id: String,
         data: String,
         timestamp: Instant
     ): SendPieceResponse {
-        val toSign = "$id$timestamp$appPubKey$userPubKey$data"
-        val signature = Hex.encode(signer.sign(toSign.toByteArray()))
+        val toSign = "$id$timestamp$appPubKey$userPubKey$data".toByteArray()
+        val signature = signer.apply { update(toSign, 0, toSign.size) }.let { Hex.toHexString(it.generateSignature()) }
         val piece = JsonObject(
             mapOf(
                 "id" to id,

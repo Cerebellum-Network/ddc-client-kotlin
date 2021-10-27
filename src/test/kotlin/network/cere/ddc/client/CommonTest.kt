@@ -1,8 +1,6 @@
 package network.cere.ddc.client
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.google.crypto.tink.subtle.Ed25519Sign
-import com.google.crypto.tink.subtle.Hex
 import io.netty.handler.codec.http.HttpResponseStatus.OK
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
@@ -13,11 +11,16 @@ import network.cere.ddc.client.consumer.DdcConsumer
 import network.cere.ddc.client.producer.DdcProducer
 import network.cere.ddc.client.producer.Piece
 import network.cere.ddc.client.producer.ProducerConfig
+import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
+import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
+import org.bouncycastle.util.encoders.Hex
 import org.junit.jupiter.api.Test
+import java.security.SecureRandom
 import java.time.Duration
 import java.time.Instant
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import kotlin.test.assertEquals
 
@@ -36,10 +39,11 @@ internal class CommonTest {
     @Test
     fun `DDC producer and consumer - fill completely 3 nodes and test allocation of app partitions on other nodes (storage scaling)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val appPrivKey = Hex.encode(appKeyPair.privateKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val appPrivKey = Hex.toHexString((appKeyPair.private as Ed25519PrivateKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -74,19 +78,19 @@ internal class CommonTest {
 
         val userThreads = mutableListOf<Thread>()
         repeat(users) { userId ->
-                repeat(piecesPerUser) { pieceId ->
-                    val piece = Piece("$userId-$pieceId", appPubKey, "$userId", Instant.now(), "1".repeat(6000000))
-                    val expectedPiece = network.cere.ddc.client.consumer.Piece(
-                        piece.id,
-                        piece.appPubKey,
-                        piece.userPubKey,
-                        piece.timestamp,
-                        piece.data,
-                        0 // ignore offsets
-                    )
-                    expectedPieces.add(expectedPiece)
-                    ddcProducer.send(piece).await().indefinitely()
-                }
+            repeat(piecesPerUser) { pieceId ->
+                val piece = Piece("$userId-$pieceId", appPubKey, "$userId", Instant.now(), "1".repeat(6000000))
+                val expectedPiece = network.cere.ddc.client.consumer.Piece(
+                    piece.id,
+                    piece.appPubKey,
+                    piece.userPubKey,
+                    piece.timestamp,
+                    piece.data,
+                    0 // ignore offsets
+                )
+                expectedPieces.add(expectedPiece)
+                ddcProducer.send(piece).await().indefinitely()
+            }
         }
         userThreads.forEach { it.join() }
 
@@ -107,10 +111,12 @@ internal class CommonTest {
         }
     }
 
-    private fun createApp(appPubKey: String?, signer: Ed25519Sign) {
+    private fun createApp(appPubKey: String?, signer: Ed25519Signer) {
+        val toSign = "$appPubKey".toByteArray()
+        signer.update(toSign, 0, toSign.size)
         val createAppReq = mapOf(
             "appPubKey" to appPubKey,
-            "signature" to Hex.encode(signer.sign("$appPubKey".toByteArray()))
+            "signature" to Hex.toHexString(signer.generateSignature())
         ).let(::JsonObject)
 
         client.postAbs("$DDC_NODE_URL$API_PREFIX/apps")

@@ -1,8 +1,6 @@
 package network.cere.ddc.client.producer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
-import com.google.crypto.tink.subtle.Ed25519Sign
-import com.google.crypto.tink.subtle.Hex
 import io.netty.handler.codec.http.HttpResponseStatus.OK
 import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
@@ -12,7 +10,14 @@ import io.vertx.ext.web.client.WebClient
 import io.vertx.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.api.Metadata
+import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
+import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
+import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+import org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+import org.bouncycastle.crypto.signers.Ed25519Signer
+import org.bouncycastle.util.encoders.Hex
 import org.junit.jupiter.api.Test
+import java.security.SecureRandom
 import java.time.Instant
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.test.assertEquals
@@ -32,10 +37,11 @@ internal class DdcProducerTest {
     @Test
     fun `DDC producer - produce (positive scenario)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val appPrivKey = Hex.encode(appKeyPair.privateKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val appPrivKey = Hex.toHexString((appKeyPair.private as Ed25519PrivateKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -81,10 +87,11 @@ internal class DdcProducerTest {
     @Test
     fun `DDC producer - produce while app scales (positive scenario)`() {
         //given
-        val appKeyPair = Ed25519Sign.KeyPair.newKeyPair()
-        val appPubKey = Hex.encode(appKeyPair.publicKey)
-        val appPrivKey = Hex.encode(appKeyPair.privateKey)
-        val signer = Ed25519Sign(appKeyPair.privateKey)
+        val appKeyPair = Ed25519KeyPairGenerator().apply { init(Ed25519KeyGenerationParameters(SecureRandom())) }
+            .generateKeyPair()
+        val appPubKey = Hex.toHexString((appKeyPair.public as Ed25519PublicKeyParameters).encoded)
+        val appPrivKey = Hex.toHexString((appKeyPair.private as Ed25519PrivateKeyParameters).encoded)
+        val signer = Ed25519Signer().apply { init(true, appKeyPair.private) }
 
         createApp(appPubKey, signer)
 
@@ -172,10 +179,12 @@ internal class DdcProducerTest {
         assertEquals(expectedPieces, pieces.toSet())
     }
 
-    private fun createApp(appPubKey: String?, signer: Ed25519Sign) {
+    private fun createApp(appPubKey: String?, signer: Ed25519Signer) {
+        val toSign = "$appPubKey".toByteArray()
+        signer.update(toSign, 0, toSign.size)
         val createAppReq = mapOf(
             "appPubKey" to appPubKey,
-            "signature" to Hex.encode(signer.sign("$appPubKey".toByteArray()))
+            "signature" to Hex.toHexString(signer.generateSignature())
         ).let(::JsonObject)
 
         client.postAbs("$DDC_NODE_URL$API_PREFIX/apps")

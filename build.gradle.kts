@@ -43,9 +43,9 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter-params:$junitJupiter")
     testImplementation("ch.qos.logback:logback-classic:1.1.7")
     testImplementation("org.mockito.kotlin:mockito-kotlin:4.0.0")
-    testImplementation("com.google.crypto.tink:tink:1.5.0")
 
     // JMH
+    jmh("com.google.crypto.tink:tink:1.6.1")
     jmh("net.i2p.crypto:eddsa:0.3.0")
 }
 
