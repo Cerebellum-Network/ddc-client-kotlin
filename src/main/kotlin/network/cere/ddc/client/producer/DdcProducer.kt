@@ -14,8 +14,6 @@ import network.cere.ddc.client.producer.exception.InsufficientNetworkCapacityExc
 import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
-import java.lang.RuntimeException
-import java.util.*
 import java.util.concurrent.atomic.AtomicReference
 
 class DdcProducer(
@@ -27,7 +25,8 @@ class DdcProducer(
 
     private val client: WebClient = WebClient.create(vertx)
 
-    private val metadataManager = MetadataManager(config.bootstrapNodes, client)
+    private val metadataManager =
+        MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
     private val appTopology: AtomicReference<AppTopology> = AtomicReference()
 
@@ -46,8 +45,10 @@ class DdcProducer(
             val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, appTopology.get())
             client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
         }
+            .onFailure().invoke { -> updateAppTopology() }
+            .onFailure().retry().withBackOff(config.connectionRetryBackOff).expireIn(config.retryExpiration.toMillis())
             .onItem().transform { res ->
-                return@transform when (res.statusCode()) {
+                when (res.statusCode()) {
                     CREATED.code() -> res.bodyAsJson(SendPieceResponse::class.java)
                     CONFLICT.code() -> {
                         log.warn("Duplicate message with id ${piece.id}. Skipping.")

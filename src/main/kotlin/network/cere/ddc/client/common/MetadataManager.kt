@@ -6,41 +6,49 @@ import io.vertx.mutiny.ext.web.client.WebClient
 import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.api.PartitionTopology
+import network.cere.ddc.client.common.exception.AppTopologyLoadException
 import org.slf4j.LoggerFactory
-import java.lang.RuntimeException
+import java.lang.Long.max
+import java.util.concurrent.ConcurrentLinkedDeque
+import java.util.concurrent.ConcurrentSkipListSet
 import java.util.zip.CRC32
 
 class MetadataManager(
-    private var bootstrapNodes: List<String>,
-    private val client: WebClient
+    bootstrapNodes: List<String>,
+    private val client: WebClient,
+    private val retries: Int,
+    private val connectionNodesCacheSize: Int,
 ) {
-
-    init {
-        bootstrapNodes = bootstrapNodes.map { it.removeSuffix("/") }
-    }
 
     private val log = LoggerFactory.getLogger(javaClass)
 
+    private val addressesDeque = ConcurrentLinkedDeque<String>()
+    private val addressesSet = ConcurrentSkipListSet<String>()
+
+    init {
+        addressesSet.addAll(bootstrapNodes.map { it.removeSuffix("/") })
+        addressesDeque.addAll(addressesSet)
+    }
+
     fun getAppTopology(appPubKey: String): AppTopology {
-        var retryAttempt = 0
-        var getAppTopology = Uni.createFrom().deferred {
-            client.getAbs("${bootstrapNodes[retryAttempt++]}/api/rest/apps/${appPubKey}/topology")
-                .`as`(BodyCodec.json(AppTopology::class.java))
-                .send()
-        }.onItem().transform { res ->
-            if (res.statusCode() != HttpResponseStatus.OK.code()) {
-                log.error("Can't load app topology (statusCode=${res.statusCode()}, body=${res.bodyAsString()})")
-                throw RuntimeException("Can't load app topology")
+        val appTopologyUni = Uni.createFrom().deferred {
+            val address = addressesDeque.peek()
+            sendRequestAppTopology(appPubKey, address)
+        }
+
+        val appTopologyFailResistedUni = appTopologyUni
+            .onFailure(AppTopologyLoadException::class.java).invoke { ex ->
+                val exception = ex as AppTopologyLoadException
+                log.warn("Can't load app topology from node (address=${exception.address}, issue='${exception.message}')")
+                exception.address?.also { moveAddressToLast(it) }
             }
+            .onFailure().retry().atMost(max(retries.toLong(), 1) * addressesSet.size)
+            .onFailure().transform { ex -> AppTopologyLoadException("App topology is not available from nodes", ex) }
+            .onFailure().invoke { ex -> log.error("Couldn't load App from any node", ex) }
 
-            res.body()
-        }
-
-        if (bootstrapNodes.size.toLong() > 1) {
-            getAppTopology = getAppTopology.onFailure().retry().atMost(bootstrapNodes.size.toLong() - 1)
-        }
-
-        return getAppTopology.runSubscriptionOn { Thread(it).start() }.await().indefinitely()
+        return appTopologyFailResistedUni
+            .onItem().invoke { topology -> updateNodeAddresses(topology) }
+            .runSubscriptionOn { Thread(it).start() }.await().indefinitely()
     }
 
     fun getProducerTargetNode(userPubKey: String, appTopology: AppTopology): String? {
@@ -52,5 +60,39 @@ class MetadataManager(
     fun getConsumerTargetPartitions(userPubKey: String, appTopology: AppTopology): List<PartitionTopology> {
         val ringToken = CRC32().apply { update(userPubKey.toByteArray()) }.value
         return appTopology.partitions!!.filter { it.sectorStart!! <= ringToken && ringToken <= it.sectorEnd!! }
+    }
+
+    private fun sendRequestAppTopology(appPubKey: String, address: String) =
+        client.getAbs("$address/api/rest/apps/${appPubKey}/topology")
+            .`as`(BodyCodec.json(AppTopology::class.java)).send()
+            .onFailure().transform { AppTopologyLoadException("Can't connect to node", address, it) }
+            .onItem().transform { resp ->
+                if (resp.statusCode() != HttpResponseStatus.OK.code()) {
+                    throw AppTopologyLoadException(
+                        "Bad response from node (statusCode=${resp.statusCode()}, body=${resp.bodyAsString()})",
+                        address
+                    )
+                }
+
+                resp.body()
+            }
+
+    private fun updateNodeAddresses(appTopology: AppTopology) {
+        if (addressesSet.size < connectionNodesCacheSize) {
+            appTopology.partitions?.forEach { partition ->
+                addAddress(partition.master?.nodeHttpAddress)
+                partition.replicas?.forEach { addAddress(it.nodeHttpAddress) }
+            }
+        }
+    }
+
+    private fun addAddress(address: String?) =
+        address != null && addressesSet.size < connectionNodesCacheSize
+                && addressesSet.add(address) && addressesDeque.add(address)
+
+    private fun moveAddressToLast(address: String) {
+        if (addressesDeque.size > 1 && addressesDeque.removeFirstOccurrence(address)) {
+            addressesDeque.add(address)
+        }
     }
 }

@@ -12,6 +12,9 @@ bin/
 *.ipr
 *.iml
 *.iws
+out/
+!**/src/main/**/out/
+!**/src/test/**/out/
 
 # NetBeans
 nb-configuration.xml

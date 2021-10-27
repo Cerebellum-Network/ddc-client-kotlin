@@ -19,7 +19,6 @@ import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.zip.CRC32
 import kotlin.test.assertEquals
-import java.util.*
 
 
 internal class DdcConsumerTest {
@@ -92,7 +91,7 @@ internal class DdcConsumerTest {
         testSubject.close()
 
         //then
-        assertEquals(expectedPieces, pieces)
+        assertPieces(expectedPieces, pieces)
     }
 
     @Test
@@ -156,7 +155,7 @@ internal class DdcConsumerTest {
         sleep(1000)
 
         //then
-        assertEquals(expectedPieces, pieces)
+        assertPieces(expectedPieces, pieces)
 
         //when consumer is re-created after restart/failure
         testSubject.close()
@@ -188,7 +187,7 @@ internal class DdcConsumerTest {
         val expectedPiecesAfterFailure = setOf(
             Piece("3", appPubKey, "user_3", piece3Timestamp, "{\"event_type\":\"third event\"}", 3)
         )
-        assertEquals(expectedPiecesAfterFailure, piecesAfterFailure)
+        assertPieces(expectedPiecesAfterFailure, piecesAfterFailure)
     }
 
     @Test
@@ -252,7 +251,7 @@ internal class DdcConsumerTest {
         sleep(1000)
 
         //then
-        assertEquals(expectedPieces, pieces)
+        assertPieces(expectedPieces, pieces)
 
         //when consumer is re-created after restart/failure
         testSubject.close()
@@ -299,7 +298,7 @@ internal class DdcConsumerTest {
             ),
             Piece("3", appPubKey, "user_3", piece2Timestamp, "{\"event_type\":\"third event\"}", 3)
         )
-        assertEquals(expectedPiecesAfterFailure, piecesAfterFailure)
+        assertPieces(expectedPiecesAfterFailure, piecesAfterFailure)
     }
 
     @Test
@@ -366,7 +365,7 @@ internal class DdcConsumerTest {
         sleep(1000)
 
         //then
-        assertEquals(expectedPieces, pieces)
+        assertPieces(expectedPieces, pieces)
 
         //when consumer is re-created after restart/failure
         testSubject.close()
@@ -399,7 +398,7 @@ internal class DdcConsumerTest {
         val expectedPiecesAfterFailure = setOf(
             Piece("3", appPubKey, "user_3", piece3Timestamp, "{\"event_type\":\"third event\"}", 3)
         )
-        assertEquals(expectedPiecesAfterFailure, piecesAfterFailure)
+        assertPieces(expectedPiecesAfterFailure, piecesAfterFailure)
     }
 
     @Test
@@ -460,7 +459,7 @@ internal class DdcConsumerTest {
         testSubject.close()
 
         //then
-        assertEquals(expectedPieces, pieces)
+        assertPieces(expectedPieces, pieces)
     }
 
     @Test
@@ -520,8 +519,7 @@ internal class DdcConsumerTest {
         sleep(1000)
 
         //then
-        assertEquals(expectedPieces.size, pieces.size)
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
 
         //when
         val piece3Timestamp = Instant.now()
@@ -546,8 +544,7 @@ internal class DdcConsumerTest {
                 3
             )
         )
-        assertEquals(expectedPieces.size, pieces.size)
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
 
         //when
         val piece4Timestamp = Instant.now()
@@ -573,8 +570,7 @@ internal class DdcConsumerTest {
                 4
             )
         )
-        assertEquals(expectedPieces.size, pieces.size)
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
     }
 
     @Test
@@ -619,7 +615,7 @@ internal class DdcConsumerTest {
         sleep(1000)
 
         //then
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
 
         //when next piece triggers partition scaling
         val piece4Timestamp = Instant.now()
@@ -629,7 +625,7 @@ internal class DdcConsumerTest {
 
         //then
         expectedPieces.add(Piece("4", appPubKey, "user_4", piece4Timestamp, piece4Data, 1))
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
 
         //when
         val piece5Timestamp = Instant.now()
@@ -639,7 +635,7 @@ internal class DdcConsumerTest {
 
         //then
         expectedPieces.add(Piece("5", appPubKey, "user_5", piece5Timestamp, piece5Data, 2))
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
 
         //when
         val piece6Timestamp = Instant.now()
@@ -649,7 +645,7 @@ internal class DdcConsumerTest {
 
         //then
         expectedPieces.add(Piece("6", appPubKey, "user_6", piece6Timestamp, piece6Data, 3))
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
 
         //when next piece triggers partition scaling
         val piece7Timestamp = Instant.now()
@@ -660,7 +656,7 @@ internal class DdcConsumerTest {
 
         //then
         expectedPieces.add(Piece("7", appPubKey, "user_7", piece7Timestamp, piece7Data, 1))
-        assertEquals(expectedPieces, pieces.toSet())
+        assertPieces(expectedPieces, pieces.toSet())
     }
 
     @Test
@@ -716,7 +712,7 @@ internal class DdcConsumerTest {
         val pieces = testSubject.getAppPieces(fields = listOf("event_type", "location"))
 
         //then
-        assertEquals(expectedPieces, pieces.collect().asList().await().indefinitely())
+        assertPieces(expectedPieces, pieces.collect().asList().await().indefinitely())
     }
 
     @Test
@@ -765,7 +761,7 @@ internal class DdcConsumerTest {
         val pieces = testSubject.getAppPieces()
 
         //then
-        assertEquals(expectedPieces, pieces.collect().asList().await().indefinitely().toSet())
+        assertPieces(expectedPieces, pieces.collect().asList().await().indefinitely().toSet())
     }
 
     @Test
@@ -834,7 +830,7 @@ internal class DdcConsumerTest {
         )
 
         //then
-        assertEquals(expectedPieces, pieces.collect().asList().await().indefinitely().toSet())
+        assertPieces(expectedPieces, pieces.collect().asList().await().indefinitely().toSet())
     }
 
     @Test
@@ -887,8 +883,8 @@ internal class DdcConsumerTest {
         val piecesUser2 = testSubject.getUserPieces(userPubKey = "user_2", fields = listOf("event_type", "location"))
 
         //then
-        assertEquals(expectedPiecesUser1, piecesUser1.collect().asList().await().indefinitely())
-        assertEquals(expectedPiecesUser2, piecesUser2.collect().asList().await().indefinitely())
+        assertPieces(expectedPiecesUser1, piecesUser1.collect().asList().await().indefinitely())
+        assertPieces(expectedPiecesUser2, piecesUser2.collect().asList().await().indefinitely())
     }
 
     @Test
@@ -941,8 +937,8 @@ internal class DdcConsumerTest {
         val piecesUser2 = testSubject.getUserPieces("user_2")
 
         //then
-        assertEquals(expectedPiecesUser1, piecesUser1.collect().asList().await().indefinitely())
-        assertEquals(expectedPiecesUser2, piecesUser2.collect().asList().await().indefinitely())
+        assertPieces(expectedPiecesUser1, piecesUser1.collect().asList().await().indefinitely())
+        assertPieces(expectedPiecesUser2, piecesUser2.collect().asList().await().indefinitely())
     }
 
     @Test
@@ -1012,7 +1008,7 @@ internal class DdcConsumerTest {
         )
 
         //then
-        assertEquals(expectedPieces, pieces.collect().asList().await().indefinitely())
+        assertPieces(expectedPieces, pieces.collect().asList().await().indefinitely())
     }
 
     @Test
@@ -1148,5 +1144,11 @@ internal class DdcConsumerTest {
             .toCompletableFuture()
             .get()
             .bodyAsJson(SendPieceResponse::class.java)
+    }
+
+    private fun assertPieces(expected: Collection<Piece>, actual: Collection<Piece>) {
+        assertEquals(expected.size, actual.size, "Different number of pieces")
+
+        assertEquals(expected.toSet(), actual.map { it.copy(checksum = null) }.toSet())
     }
 }
