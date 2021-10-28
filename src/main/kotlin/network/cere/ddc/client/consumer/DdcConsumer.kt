@@ -17,6 +17,7 @@ import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.api.Partition
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.MetadataManager
+import network.cere.ddc.client.common.exception.InitializeException
 import network.cere.ddc.client.consumer.checkpointer.Checkpointer
 import network.cere.ddc.client.consumer.checkpointer.InMemoryCheckpointer
 import network.cere.ddc.client.consumer.exception.PartitionTopologyMissException
@@ -360,26 +361,30 @@ class DdcConsumer(
     }
 
     private fun initializeAppTopology(): Uni<AppTopology> {
-        return metadataManager.getAppTopologyInitializer(config.appPubKey,
-            {
-                appTopology = Uni.createFrom().item(it).subscribeAsCompletionStage()
+        val scheduleDelay = Duration.ofMillis(config.updateAppTopologyIntervalMs.toLong())
+        val scheduledGetAppTopology =  Uni.createFrom().deferred {
+            metadataManager.getAppTopology(config.appPubKey)
+        }
+            .repeat().withDelay(scheduleDelay).indefinitely()
+            .onFailure().invoke { ex -> log.info("Failed to update AppTopology, retry", ex) }
+            .onFailure().retry().withBackOff(scheduleDelay).indefinitely()
 
-                val scheduleDelay = Duration.ofMillis(config.updateAppTopologyIntervalMs.toLong())
-
-                Uni.createFrom().deferred {
-                    metadataManager.getAppTopology(config.appPubKey)
-                }
-                    .repeat().withDelay(scheduleDelay).indefinitely()
-                    .onFailure().invoke { ex -> log.info("Failed to update AppTopology, retry", ex) }
-                    .onFailure().retry().withBackOff(scheduleDelay).indefinitely()
-                    .subscribe().with { newAppTopology -> updateAppTopology(newAppTopology) }
-            },
-            { ex ->
+        return Uni.createFrom().deferred {
+            log.debug("Start initializing appTopology")
+            metadataManager.getAppTopology(config.appPubKey)
+        }
+            .onFailure().transform { ex -> InitializeException(ex) }
+            .onFailure().invoke { ex ->
                 log.warn("Error initializing appTopology", ex)
                 appTopology = initializeAppTopology().subscribeAsCompletionStage()
-            },
-            { appTopology = initializeAppTopology().subscribeAsCompletionStage() })
+            }
+            .onCancellation().invoke { appTopology = initializeAppTopology().subscribeAsCompletionStage() }
+            .onItem().invoke { loadedAppTopology ->
+                appTopology = Uni.createFrom().item(loadedAppTopology).subscribeAsCompletionStage()
 
+                scheduledGetAppTopology
+                    .subscribe().with { newAppTopology -> updateAppTopology(newAppTopology) }
+            }
     }
 
     private fun partitionMatchesTimeRange(partitionTopology: PartitionTopology, from: String, to: String): Boolean {

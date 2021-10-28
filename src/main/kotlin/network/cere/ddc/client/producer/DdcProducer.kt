@@ -10,6 +10,7 @@ import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.ext.web.client.WebClient
 import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.common.MetadataManager
+import network.cere.ddc.client.common.exception.InitializeException
 import network.cere.ddc.client.producer.exception.InsufficientNetworkCapacityException
 import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
@@ -83,26 +84,29 @@ class DdcProducer(
 
     }
 
-    private fun updateAppTopology() =
-        Uni.createFrom().deferred {
-            log.info("Updating app topology")
-            metadataManager.getAppTopology(config.appPubKey)
-        }
+    private fun updateAppTopology(): Uni<Void> {
+        log.info("Updating app topology")
+        return metadataManager.getAppTopology(config.appPubKey)
             .onItem().invoke { item ->
                 log.debug("Topology received:\n{}", item)
                 appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage())
             }
             .replaceWithVoid()
+    }
 
     private fun initializeAppTopology() {
-        val appTopologyInitializer = metadataManager.getAppTopologyInitializer(
-            config.appPubKey,
-            { item -> appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage()) },
-            { ex ->
+        val appTopologyInitializer = Uni.createFrom().deferred {
+            log.debug("Start initializing appTopology")
+            metadataManager.getAppTopology(config.appPubKey)
+        }
+            .onFailure().transform { ex -> InitializeException(ex) }
+            .onFailure().invoke{ ex ->
                 log.warn("Error initializing appTopology", ex)
                 initializeAppTopology()
-            },
-            { initializeAppTopology() }).subscribeAsCompletionStage()
+            }
+            .onCancellation().invoke{ initializeAppTopology() }
+            .onItem().invoke{ item -> appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage()) }
+            .subscribeAsCompletionStage()
 
         appTopology.set(appTopologyInitializer)
     }
