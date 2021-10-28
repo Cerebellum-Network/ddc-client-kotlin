@@ -87,23 +87,24 @@ class DdcProducer(
         Uni.createFrom().deferred {
             log.info("Updating app topology")
             metadataManager.getAppTopology(config.appPubKey)
-        }.onItem().invoke { item ->
-            log.debug("Topology received:\n{}", item)
-            appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage())
-        }.replaceWithVoid()
+        }
+            .onItem().invoke { item ->
+                log.debug("Topology received:\n{}", item)
+                appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage())
+            }
+            .replaceWithVoid()
 
     private fun initializeAppTopology() {
-        val appTopologyInitialization = Uni.createFrom().deferred {
-            log.debug("Start initializing appTopology")
-            metadataManager.getAppTopology(config.appPubKey)
-        }.onFailure().invoke { ex ->
-            log.warn("Error initializing appTopology", ex)
-            initializeAppTopology()
-        }.onCancellation().invoke { initializeAppTopology() }
-            .onItem().invoke { item -> appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage()) }
-            .subscribeAsCompletionStage()
+        val appTopologyInitializer = metadataManager.getAppTopologyInitializer(
+            config.appPubKey,
+            { item -> appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage()) },
+            { ex ->
+                log.warn("Error initializing appTopology", ex)
+                initializeAppTopology()
+            },
+            { initializeAppTopology() }).subscribeAsCompletionStage()
 
-        appTopology.set(appTopologyInitialization)
+        appTopology.set(appTopologyInitializer)
     }
 
     private fun sign(piece: Piece) {

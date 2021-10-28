@@ -7,10 +7,12 @@ import io.vertx.mutiny.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.api.PartitionTopology
 import network.cere.ddc.client.common.exception.AppTopologyLoadException
+import network.cere.ddc.client.common.exception.InitializeException
 import org.slf4j.LoggerFactory
 import java.lang.Long.max
 import java.util.concurrent.ConcurrentLinkedDeque
 import java.util.concurrent.ConcurrentSkipListSet
+import java.util.function.Consumer
 import java.util.zip.CRC32
 
 class MetadataManager(
@@ -48,6 +50,22 @@ class MetadataManager(
             }
 
         return appTopologyFailResistedUni
+    }
+
+    fun getAppTopologyInitializer(
+        appPubKey: String,
+        onItem: Consumer<AppTopology>,
+        onFailure: Consumer<Throwable>,
+        onCancellation: Runnable
+    ): Uni<AppTopology> {
+        return Uni.createFrom().deferred {
+            log.debug("Start initializing appTopology")
+            getAppTopology(appPubKey)
+        }
+            .onFailure().transform { ex -> InitializeException(ex) }
+            .onFailure().invoke(onFailure)
+            .onCancellation().invoke(onCancellation)
+            .onItem().invoke(onItem)
     }
 
     fun getProducerTargetNode(userPubKey: String, appTopology: AppTopology): String? {
