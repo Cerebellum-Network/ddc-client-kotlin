@@ -99,12 +99,11 @@ class DdcProducer(
             metadataManager.getAppTopology(config.appPubKey)
         }
             .onFailure().transform { ex -> InitializeException(ex) }
-            .onFailure().invoke{ ex ->
+            .onFailure().invoke { ex ->
                 log.warn("Error initializing appTopology", ex)
                 initializeAppTopology()
             }
-            .onCancellation().invoke{ initializeAppTopology() }
-            .onItem().invoke{ item -> appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage()) }
+            .onCancellation().invoke { initializeAppTopology() }
             .subscribeAsCompletionStage()
 
         appTopology.set(appTopologyInitializer)

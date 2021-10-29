@@ -57,7 +57,7 @@ class DdcConsumer(
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
 
-        appTopology = initializeAppTopology().subscribeAsCompletionStage()
+        appTopology = initializeAppTopology()
 
         if (config.enableAutoCommit) {
             Timer("commitCheckpoints").schedule(0, config.autoCommitIntervalMs.toLong()) { commitCheckpoints() }
@@ -357,10 +357,10 @@ class DdcConsumer(
                         }
                     }
                 }
-            }.subscribe().with { appTopology = Uni.createFrom().item(newAppTopology).subscribeAsCompletionStage() }
+            }.subscribe().with { appTopology = CompletableFuture.completedFuture(newAppTopology) }
     }
 
-    private fun initializeAppTopology(): Uni<AppTopology> {
+    private fun initializeAppTopology(): CompletableFuture<AppTopology> {
         val scheduleDelay = Duration.ofMillis(config.updateAppTopologyIntervalMs.toLong())
         val scheduledGetAppTopology =  Uni.createFrom().deferred {
             metadataManager.getAppTopology(config.appPubKey)
@@ -376,15 +376,13 @@ class DdcConsumer(
             .onFailure().transform { ex -> InitializeException(ex) }
             .onFailure().invoke { ex ->
                 log.warn("Error initializing appTopology", ex)
-                appTopology = initializeAppTopology().subscribeAsCompletionStage()
+                appTopology = initializeAppTopology()
             }
-            .onCancellation().invoke { appTopology = initializeAppTopology().subscribeAsCompletionStage() }
+            .onCancellation().invoke { appTopology = initializeAppTopology() }
             .onItem().invoke { loadedAppTopology ->
-                appTopology = Uni.createFrom().item(loadedAppTopology).subscribeAsCompletionStage()
-
-                scheduledGetAppTopology
-                    .subscribe().with { newAppTopology -> updateAppTopology(newAppTopology) }
-            }
+                appTopology = CompletableFuture.completedFuture(loadedAppTopology)
+                scheduledGetAppTopology.subscribe().with { newAppTopology -> updateAppTopology(newAppTopology) }
+            }.subscribeAsCompletionStage()
     }
 
     private fun partitionMatchesTimeRange(partitionTopology: PartitionTopology, from: String, to: String): Boolean {
