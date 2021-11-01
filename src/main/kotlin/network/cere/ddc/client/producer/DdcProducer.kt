@@ -16,7 +16,7 @@ import network.cere.ddc.client.producer.exception.ServiceUnavailableException
 import org.slf4j.LoggerFactory
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.atomic.AtomicReference
-import java.util.function.Predicate
+import kotlin.math.max
 
 class DdcProducer(
     private val config: ProducerConfig,
@@ -42,8 +42,6 @@ class DdcProducer(
 
     override fun send(piece: Piece): Uni<SendPieceResponse> {
         sign(piece)
-        val failurePredicate =
-            Predicate<Throwable> { it is InvalidAppTopologyException || it is InsufficientNetworkCapacityException }
 
         return Uni.createFrom().completionStage { appTopology.get() }
             .onItem().transformToUni { item ->
@@ -77,9 +75,8 @@ class DdcProducer(
                     }
                 }
             }
-            .onFailure(failurePredicate).call { -> updateAppTopology() }
-            .onFailure(failurePredicate).retry().atMost(1)
-            .onFailure().retry().withBackOff(config.retryBackoff).atMost(config.retries.toLong())
+            .onFailure { it is InvalidAppTopologyException || it is InsufficientNetworkCapacityException }.call { -> updateAppTopology() }
+            .onFailure().retry().withBackOff(config.retryBackoff).atMost(max(1, config.retries.toLong()))
 
     }
 
