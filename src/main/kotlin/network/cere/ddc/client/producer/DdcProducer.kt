@@ -85,7 +85,7 @@ class DdcProducer(
         return metadataManager.getAppTopology(config.appPubKey)
             .onItem().invoke { item ->
                 log.debug("Topology received:\n{}", item)
-                appTopology.set(Uni.createFrom().item(item).subscribeAsCompletionStage())
+                appTopology.set(CompletableFuture.completedFuture(item))
             }
             .replaceWithVoid()
     }
