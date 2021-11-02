@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Uni
 import io.vertx.core.json.jackson.DatabindCodec
+import io.vertx.ext.web.client.WebClientOptions
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.ext.web.client.WebClient
 import network.cere.ddc.client.api.AppTopology
@@ -22,7 +23,7 @@ class DdcProducer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val client: WebClient = WebClient.create(vertx)
+    private val client: WebClient = WebClient.create(vertx, WebClientOptions().setMaxPoolSize(config.nodeConnectionPoolSize))
 
     private val metadataManager =
         MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)

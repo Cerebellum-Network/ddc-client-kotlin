@@ -1,5 +1,6 @@
 package network.cere.ddc.client.consumer
 
+import io.vertx.core.http.HttpClientOptions
 import java.time.Duration
 
 data class ConsumerConfig(
@@ -14,5 +15,6 @@ data class ConsumerConfig(
     val retries: Int = 3,
     val connectionNodesCacheSize: Int = 20,
     val minRetryBackOff: Duration = Duration.ofMillis(100),
-    val maxRetryBackOff: Duration = Duration.ofSeconds(10)
+    val maxRetryBackOff: Duration = Duration.ofSeconds(10),
+    val nodeConnectionPoolSize: Int = HttpClientOptions.DEFAULT_MAX_POOL_SIZE
 )

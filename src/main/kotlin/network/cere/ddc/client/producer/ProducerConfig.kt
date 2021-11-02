@@ -1,5 +1,6 @@
 package network.cere.ddc.client.producer
 
+import io.vertx.core.http.HttpClientOptions
 import java.time.Duration
 
 data class ProducerConfig(
@@ -10,5 +11,6 @@ data class ProducerConfig(
     val retryBackoff: Duration = Duration.ofMillis(5000),
     val connectionNodesCacheSize: Int = 20,
     val connectionRetryBackOff: Duration = Duration.ofMillis(100),
-    val retryExpiration: Duration = Duration.ofSeconds(2)
+    val retryExpiration: Duration = Duration.ofSeconds(2),
+    val nodeConnectionPoolSize: Int = HttpClientOptions.DEFAULT_MAX_POOL_SIZE
 )

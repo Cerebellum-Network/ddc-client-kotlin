@@ -8,6 +8,7 @@ import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
 import io.smallrye.mutiny.subscription.Cancellable
 import io.vertx.core.buffer.Buffer
 import io.vertx.core.json.jackson.DatabindCodec
+import io.vertx.ext.web.client.WebClientOptions
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.core.parsetools.JsonParser
 import io.vertx.mutiny.core.streams.WriteStream
@@ -37,7 +38,7 @@ class DdcConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val client: WebClient = WebClient.create(vertx)
+    private val client: WebClient = WebClient.create(vertx, WebClientOptions().setMaxPoolSize(config.nodeConnectionPoolSize))
 
     private val metadataManager: MetadataManager =
         MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)

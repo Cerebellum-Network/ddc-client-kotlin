@@ -47,6 +47,7 @@ dependencies {
     // JMH
     jmh("com.google.crypto.tink:tink:1.6.1")
     jmh("net.i2p.crypto:eddsa:0.3.0")
+    jmh("com.github.tomakehurst:wiremock:2.27.2")
 }
 
 tasks {
