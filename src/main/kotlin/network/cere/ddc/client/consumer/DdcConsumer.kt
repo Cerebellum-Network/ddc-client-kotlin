@@ -38,7 +38,8 @@ class DdcConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val client: WebClient = WebClient.create(vertx, WebClientOptions().setMaxPoolSize(config.nodeConnectionPoolSize))
+    private val client: WebClient =
+        WebClient.create(vertx, WebClientOptions().setMaxPoolSize(config.nodeConnectionPoolSize).setPipelining(true))
 
     private val metadataManager: MetadataManager =
         MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
