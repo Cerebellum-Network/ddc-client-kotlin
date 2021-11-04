@@ -38,7 +38,7 @@ internal class MetadataManagerTest {
         whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doReturn clientResp
 
         //when
-        val result = testSubject.getAppTopology(APP_PUB_KEY)
+        val result = testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely()
 
         //then
         assertEquals(result, AppTopology(APP_PUB_KEY))
@@ -54,7 +54,7 @@ internal class MetadataManagerTest {
         whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doReturn firstResp doReturn secondResp
 
         //when
-        val result = testSubject.getAppTopology(APP_PUB_KEY)
+        val result = testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely()
 
         //then
         assertEquals(result, AppTopology(APP_PUB_KEY))
@@ -68,7 +68,7 @@ internal class MetadataManagerTest {
         whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doAnswer { clientResp }
 
         //when
-        val action = { testSubject.getAppTopology(APP_PUB_KEY) }
+        val action = { testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely() }
 
         //then
         assertThrows<AppTopologyLoadException> { action() }
@@ -86,8 +86,8 @@ internal class MetadataManagerTest {
         whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doReturn failResp
 
         //when
-        val resultFirst = testSubject.getAppTopology(APP_PUB_KEY)
-        val resultSecond = testSubject.getAppTopology(APP_PUB_KEY)
+        val resultFirst = testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely()
+        val resultSecond = testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely()
 
         //then
         assertEquals(resultFirst, AppTopology(APP_PUB_KEY))
@@ -124,8 +124,8 @@ internal class MetadataManagerTest {
         whenever(client.getAbs("addedNode/api/rest/apps/${APP_PUB_KEY}/topology")) doReturn newSuccessResp
 
         //when
-        val resultFirst = testSubject.getAppTopology(APP_PUB_KEY)
-        val resultSecond = testSubject.getAppTopology(APP_PUB_KEY)
+        val resultFirst = testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely()
+        val resultSecond = testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely()
 
         //then
         val expectedFirst = AppTopology(
@@ -159,7 +159,7 @@ internal class MetadataManagerTest {
         whenever(client.getAbs("bootstrapNode-1/api/rest/apps/${APP_PUB_KEY}/topology")) doAnswer { clientResp }
 
         //when
-        val action = { testSubject.getAppTopology(APP_PUB_KEY) }
+        val action = { testSubject.getAppTopology(APP_PUB_KEY).await().indefinitely() }
 
         //then
         assertThrows<AppTopologyLoadException> { action() }
