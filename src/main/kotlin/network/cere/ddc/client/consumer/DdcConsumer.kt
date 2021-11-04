@@ -8,7 +8,6 @@ import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
 import io.smallrye.mutiny.subscription.Cancellable
 import io.vertx.core.buffer.Buffer
-import io.vertx.core.http.HttpClientOptions
 import io.vertx.core.http.HttpVersion
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.ext.web.client.WebClientOptions
@@ -40,15 +39,6 @@ class DdcConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val client: WebClient = WebClient.create(
-        vertx,
-        WebClientOptions().setHttp2MaxPoolSize(HttpClientOptions.DEFAULT_MAX_POOL_SIZE)
-            .setHttp2ConnectionWindowSize(Http2CodecUtil.MAX_INITIAL_WINDOW_SIZE).setProtocolVersion(HttpVersion.HTTP_2)
-    )
-
-    private val metadataManager: MetadataManager =
-        MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
-
     // <streamId + partitionId> to subscription
     private val partitionSubscriptions = ConcurrentHashMap<String, Cancellable>()
 
@@ -58,10 +48,24 @@ class DdcConsumer(
 
     private val executor = Executors.newFixedThreadPool(config.partitionPollExecutorSize)
 
+    private val client: WebClient
+
+    private val metadataManager: MetadataManager
+
     private var appTopology: AppTopology
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
+
+        val clientOptions = WebClientOptions()
+            .setMaxPoolSize(config.nodeConnectionPoolSize)
+            .setHttp2MaxPoolSize(config.nodeConnectionPoolSize)
+            .setHttp2ConnectionWindowSize(Http2CodecUtil.MAX_INITIAL_WINDOW_SIZE)
+            .setProtocolVersion(HttpVersion.HTTP_2)
+        client = WebClient.create(vertx, clientOptions)
+
+        metadataManager =
+            MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
         appTopology = metadataManager.getAppTopology(config.appPubKey)
 
