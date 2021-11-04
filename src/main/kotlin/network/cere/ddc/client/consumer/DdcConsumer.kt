@@ -2,11 +2,14 @@ package network.cere.ddc.client.consumer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.netty.handler.codec.http.HttpResponseStatus.*
+import io.netty.handler.codec.http2.Http2CodecUtil
 import io.smallrye.mutiny.Multi
 import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
 import io.smallrye.mutiny.subscription.Cancellable
 import io.vertx.core.buffer.Buffer
+import io.vertx.core.http.HttpClientOptions
+import io.vertx.core.http.HttpVersion
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.ext.web.client.WebClientOptions
 import io.vertx.mutiny.core.Vertx
@@ -26,7 +29,6 @@ import java.time.Duration
 import java.util.*
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
-import kotlin.collections.HashMap
 import kotlin.concurrent.schedule
 
 class DdcConsumer(
@@ -38,8 +40,11 @@ class DdcConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val client: WebClient =
-        WebClient.create(vertx, WebClientOptions().setMaxPoolSize(config.nodeConnectionPoolSize))
+    private val client: WebClient = WebClient.create(
+        vertx,
+        WebClientOptions().setHttp2MaxPoolSize(HttpClientOptions.DEFAULT_MAX_POOL_SIZE)
+            .setHttp2ConnectionWindowSize(Http2CodecUtil.MAX_INITIAL_WINDOW_SIZE).setProtocolVersion(HttpVersion.HTTP_2)
+    )
 
     private val metadataManager: MetadataManager =
         MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
