@@ -7,7 +7,9 @@ import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
 import io.smallrye.mutiny.subscription.Cancellable
 import io.vertx.core.buffer.Buffer
+import io.vertx.core.http.HttpVersion
 import io.vertx.core.json.jackson.DatabindCodec
+import io.vertx.ext.web.client.WebClientOptions
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.core.parsetools.JsonParser
 import io.vertx.mutiny.core.streams.WriteStream
@@ -38,11 +40,6 @@ class DdcConsumer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val client: WebClient = WebClient.create(vertx)
-
-    private val metadataManager: MetadataManager =
-        MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
-
     // <streamId + partitionId> to subscription
     private val partitionSubscriptions = ConcurrentHashMap<String, Cancellable>()
 
@@ -52,10 +49,24 @@ class DdcConsumer(
 
     private val executor = Executors.newFixedThreadPool(config.partitionPollExecutorSize)
 
+    private val client: WebClient
+
+    private val metadataManager: MetadataManager
+
     private var appTopology: CompletableFuture<AppTopology>
 
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
+
+        val clientOptions = WebClientOptions()
+            .setMaxPoolSize(config.nodeConnectionHttp1PoolSize)
+            .setHttp2MaxPoolSize(config.nodeConnectionHttp2PoolSize)
+            .setHttp2ConnectionWindowSize(config.nodeConnectionWindowSize)
+            .setProtocolVersion(HttpVersion.HTTP_2)
+        client = WebClient.create(vertx, clientOptions)
+
+        metadataManager =
+            MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
         appTopology = initializeAppTopology()
 

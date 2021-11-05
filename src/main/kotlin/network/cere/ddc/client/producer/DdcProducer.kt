@@ -3,7 +3,9 @@ package network.cere.ddc.client.producer
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Uni
+import io.vertx.core.http.HttpVersion
 import io.vertx.core.json.jackson.DatabindCodec
+import io.vertx.ext.web.client.WebClientOptions
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.ext.web.client.WebClient
 import network.cere.ddc.client.api.AppTopology
@@ -25,17 +27,25 @@ class DdcProducer(
 
     private val log = LoggerFactory.getLogger(javaClass)
 
-    private val client: WebClient = WebClient.create(vertx)
-
-    private val metadataManager =
-        MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
-
     private val appTopology: AtomicReference<CompletableFuture<AppTopology>> = AtomicReference()
 
     private val signer = Ed25519Signer(config.appPrivKey)
 
+    private val client: WebClient
+
+    private val metadataManager: MetadataManager
+
     init {
         DatabindCodec.mapper().registerModule(KotlinModule())
+
+        val clientOptions = WebClientOptions()
+            .setMaxPoolSize(config.nodeConnectionHttp1PoolSize)
+            .setHttp2MaxPoolSize(config.nodeConnectionHttp2PoolSize)
+            .setProtocolVersion(HttpVersion.HTTP_2)
+        client = WebClient.create(vertx, clientOptions)
+
+        metadataManager =
+            MetadataManager(config.bootstrapNodes, client, config.retries, config.connectionNodesCacheSize)
 
         initializeAppTopology()
     }
