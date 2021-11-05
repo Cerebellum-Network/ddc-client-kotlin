@@ -2,7 +2,6 @@ package network.cere.ddc.client.consumer
 
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.netty.handler.codec.http.HttpResponseStatus.*
-import io.netty.handler.codec.http2.Http2CodecUtil
 import io.smallrye.mutiny.Multi
 import io.smallrye.mutiny.Uni
 import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
@@ -60,9 +59,9 @@ class DdcConsumer(
         DatabindCodec.mapper().registerModule(KotlinModule())
 
         val clientOptions = WebClientOptions()
-            .setMaxPoolSize(config.nodeConnectionPoolSize)
-            .setHttp2MaxPoolSize(config.nodeConnectionPoolSize)
-            .setHttp2ConnectionWindowSize(Http2CodecUtil.MAX_INITIAL_WINDOW_SIZE)
+            .setMaxPoolSize(config.nodeConnectionHttp1PoolSize)
+            .setHttp2MaxPoolSize(config.nodeConnectionHttp2PoolSize)
+            .setHttp2ConnectionWindowSize(config.nodeConnectionWindowSize)
             .setProtocolVersion(HttpVersion.HTTP_2)
         client = WebClient.create(vertx, clientOptions)
 

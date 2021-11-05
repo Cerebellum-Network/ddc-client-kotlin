@@ -39,8 +39,8 @@ class DdcProducer(
         DatabindCodec.mapper().registerModule(KotlinModule())
 
         val clientOptions = WebClientOptions()
-            .setMaxPoolSize(config.nodeConnectionPoolSize)
-            .setHttp2MaxPoolSize(config.nodeConnectionPoolSize)
+            .setMaxPoolSize(config.nodeConnectionHttp1PoolSize)
+            .setHttp2MaxPoolSize(config.nodeConnectionHttp2PoolSize)
             .setProtocolVersion(HttpVersion.HTTP_2)
         client = WebClient.create(vertx, clientOptions)
 

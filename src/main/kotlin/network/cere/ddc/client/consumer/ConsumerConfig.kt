@@ -1,5 +1,6 @@
 package network.cere.ddc.client.consumer
 
+import io.netty.handler.codec.http2.Http2CodecUtil
 import io.vertx.core.http.HttpClientOptions
 import java.time.Duration
 
@@ -16,5 +17,7 @@ data class ConsumerConfig(
     val connectionNodesCacheSize: Int = 20,
     val minRetryBackOff: Duration = Duration.ofMillis(100),
     val maxRetryBackOff: Duration = Duration.ofSeconds(10),
-    val nodeConnectionPoolSize: Int = HttpClientOptions.DEFAULT_MAX_POOL_SIZE
+    val nodeConnectionHttp1PoolSize: Int = HttpClientOptions.DEFAULT_MAX_POOL_SIZE,
+    val nodeConnectionHttp2PoolSize: Int = HttpClientOptions.DEFAULT_MAX_POOL_SIZE,
+    val nodeConnectionWindowSize: Int = Http2CodecUtil.MAX_INITIAL_WINDOW_SIZE
 )
