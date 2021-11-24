@@ -6,6 +6,8 @@ import io.vertx.core.Vertx
 import io.vertx.core.json.JsonObject
 import io.vertx.core.json.jackson.DatabindCodec
 import io.vertx.ext.web.client.WebClient
+import network.cere.ddc.client.common.signer.Scheme
+import network.cere.ddc.client.common.signer.Scheme.Ed25519
 import network.cere.ddc.client.consumer.ConsumerConfig
 import network.cere.ddc.client.consumer.DdcConsumer
 import network.cere.ddc.client.producer.DdcProducer
@@ -51,6 +53,7 @@ internal class CommonTest {
             ProducerConfig(
                 appPubKey = appPubKey,
                 appPrivKey = appPrivKey,
+                signatureScheme = Ed25519,
                 bootstrapNodes = listOf(DDC_NODE_URL),
                 retryBackoff = Duration.ofMillis(500)
             )

@@ -10,6 +10,8 @@ import io.vertx.ext.web.client.WebClient
 import io.vertx.ext.web.codec.BodyCodec
 import network.cere.ddc.client.api.AppTopology
 import network.cere.ddc.client.api.Metadata
+import network.cere.ddc.client.common.signer.Scheme
+import network.cere.ddc.client.common.signer.Scheme.Ed25519
 import org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator
 import org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters
 import org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
@@ -49,6 +51,7 @@ internal class DdcProducerTest {
             ProducerConfig(
                 appPubKey = appPubKey,
                 appPrivKey = appPrivKey,
+                signatureScheme = Ed25519,
                 bootstrapNodes = listOf(DDC_NODE_URL)
             )
         )
@@ -99,6 +102,7 @@ internal class DdcProducerTest {
             ProducerConfig(
                 appPubKey = appPubKey,
                 appPrivKey = appPrivKey,
+                signatureScheme = Ed25519,
                 bootstrapNodes = listOf(DDC_NODE_URL)
             )
         )

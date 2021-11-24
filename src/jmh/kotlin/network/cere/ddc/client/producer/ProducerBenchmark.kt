@@ -5,6 +5,7 @@ import com.github.tomakehurst.wiremock.client.WireMock.*
 import com.github.tomakehurst.wiremock.core.WireMockConfiguration.options
 import io.netty.handler.codec.http.HttpResponseStatus
 import io.vertx.mutiny.core.Vertx
+import network.cere.ddc.client.common.signer.Scheme.Ed25519
 import org.openjdk.jmh.annotations.*
 import org.openjdk.jmh.infra.Blackhole
 import java.time.Instant
@@ -81,8 +82,9 @@ open class ProducerBenchmark {
         config = ProducerConfig(
             appPubKey,
             "1149446a66b44518abdc91edc0923b20090629661246c1bbd1bfff315603abb2",
+            Ed25519,
             listOf(server!!.baseUrl()),
-            nodeConnectionPoolSize = USERS
+            nodeConnectionHttp1PoolSize = USERS
         )
 
         producer = DdcProducer(config!!, vertx!!)

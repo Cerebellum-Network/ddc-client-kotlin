@@ -14,6 +14,8 @@ group = "com.github.cerebellum-network"
 repositories {
     mavenLocal()
     mavenCentral()
+
+    maven { url = uri("https://jitpack.io") }
 }
 
 val vertxVersion = "4.0.3"
@@ -30,6 +32,7 @@ dependencies {
 
     // Crypto
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
+    implementation("com.github.yeeco:schnorrkel-java:v1.0.4")
 
     // Slf4j
     implementation("org.slf4j:slf4j-api:1.7.30")

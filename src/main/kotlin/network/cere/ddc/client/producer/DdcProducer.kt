@@ -9,9 +9,9 @@ import io.vertx.ext.web.client.WebClientOptions
 import io.vertx.mutiny.core.Vertx
 import io.vertx.mutiny.ext.web.client.WebClient
 import network.cere.ddc.client.api.AppTopology
-import network.cere.ddc.client.common.Ed25519Signer
 import network.cere.ddc.client.common.MetadataManager
 import network.cere.ddc.client.common.exception.InitializeException
+import network.cere.ddc.client.common.signer.Signer
 import network.cere.ddc.client.producer.exception.InsufficientNetworkCapacityException
 import network.cere.ddc.client.producer.exception.InvalidAppTopologyException
 import network.cere.ddc.client.producer.exception.ServiceUnavailableException
@@ -29,7 +29,7 @@ class DdcProducer(
 
     private val appTopology: AtomicReference<CompletableFuture<AppTopology>> = AtomicReference()
 
-    private val signer = Ed25519Signer(config.appPrivKey)
+    private val signer = Signer.create(config.signatureScheme, config.appPrivKey)
 
     private val client: WebClient
 
