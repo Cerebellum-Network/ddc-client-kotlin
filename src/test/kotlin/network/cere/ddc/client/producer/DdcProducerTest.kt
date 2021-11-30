@@ -53,7 +53,6 @@ internal class DdcProducerTest {
             ProducerConfig(
                 appPubKey = appPubKey,
                 appPrivKey = appPrivKey,
-                signatureScheme = Sr25519,
                 bootstrapNodes = listOf(DDC_NODE_URL)
             )
         )
