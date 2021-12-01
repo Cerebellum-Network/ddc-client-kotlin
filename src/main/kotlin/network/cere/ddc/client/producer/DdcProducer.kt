@@ -42,6 +42,8 @@ class DdcProducer(
             .setMaxPoolSize(config.nodeConnectionHttp1PoolSize)
             .setHttp2MaxPoolSize(config.nodeConnectionHttp2PoolSize)
             .setProtocolVersion(HttpVersion.HTTP_2)
+            .setUseAlpn(true)
+            //.setHttp2ClearTextUpgrade(false) TODO uncomment when require only HTTP2
         client = WebClient.create(vertx, clientOptions)
 
         metadataManager =
