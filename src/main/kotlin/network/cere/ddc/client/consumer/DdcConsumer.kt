@@ -4,6 +4,7 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import io.netty.handler.codec.http.HttpResponseStatus.*
 import io.smallrye.mutiny.Multi
 import io.smallrye.mutiny.Uni
+import io.smallrye.mutiny.infrastructure.Infrastructure
 import io.smallrye.mutiny.operators.multi.processors.UnicastProcessor
 import io.smallrye.mutiny.subscription.Cancellable
 import io.vertx.core.buffer.Buffer
@@ -64,7 +65,7 @@ class DdcConsumer(
             .setHttp2ConnectionWindowSize(config.nodeConnectionWindowSize)
             .setProtocolVersion(HttpVersion.HTTP_2)
             .setUseAlpn(true)
-            //.setHttp2ClearTextUpgrade(false) TODO uncomment when require only HTTP2
+        //.setHttp2ClearTextUpgrade(false) TODO uncomment when require only HTTP2
         client = WebClient.create(vertx, clientOptions)
 
         metadataManager =
@@ -79,6 +80,10 @@ class DdcConsumer(
 
     override fun consume(streamId: String, fields: List<String>, offsetReset: OffsetReset): Multi<ConsumerRecord> {
         return metadataManager.getAppTopology(config.appPubKey)
+            /** todo normal solution? Don't all methods of [Checkpointer] must have suspend keyword?
+             *   hotfix: to allow blocking calls [consumePartition] -> [Checkpointer.getCheckpoint]
+             */
+            .emitOn(Infrastructure.getDefaultExecutor())
             .onItem().transform { item ->
                 val stream =
                     streams.getOrPut(streamId) { Stream(streamId, UnicastProcessor.create(), fields, offsetReset) }
@@ -375,7 +380,7 @@ class DdcConsumer(
 
     private fun initializeAppTopology(): CompletableFuture<AppTopology> {
         val scheduleDelay = Duration.ofMillis(config.updateAppTopologyIntervalMs.toLong())
-        val scheduledGetAppTopology =  Uni.createFrom().deferred {
+        val scheduledGetAppTopology = Uni.createFrom().deferred {
             metadataManager.getAppTopology(config.appPubKey)
         }
             .repeat().withDelay(scheduleDelay).indefinitely()
