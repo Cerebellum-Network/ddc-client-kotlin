@@ -362,6 +362,10 @@ class DdcConsumer(
 
     private fun updateAppTopology(newAppTopology: AppTopology) {
         Uni.createFrom().completionStage { appTopology }
+            /** todo normal solution? Don't all methods of [Checkpointer] must have suspend keyword?
+             *   hotfix: to allow blocking calls [consumePartition] -> [Checkpointer.getCheckpoint]
+             */
+            .emitOn(Infrastructure.getDefaultExecutor())
             .onItem().invoke { appTopology ->
                 val partitionIds = appTopology.partitions!!.map { it.partitionId }
 
