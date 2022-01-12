@@ -44,7 +44,7 @@ internal class DdcProducerTest {
         //given
         val appKeyPair = KeyPair.generateKeyPair()
         val appPubKey = Hex.toHexString((appKeyPair.publicKey.toPublicKey()))
-        val appPrivKey = Hex.toHexString((appKeyPair.privateKey.seed))
+        val appPrivKey = Hex.toHexString((appKeyPair.privateKey.toPrivateKey()))
         val signer = Sr25519Signer(appPrivKey)
 
         createApp(appPubKey, signer)
