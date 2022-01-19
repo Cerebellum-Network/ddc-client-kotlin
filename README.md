@@ -4,7 +4,7 @@
 
 ## Requirements
 
-This library requires Java version 11 or higher and Kotlin version 1.4 or higher.
+This library requires Java version 11 or higher and Kotlin version 1.6 or higher.
 
 ## Usage
 

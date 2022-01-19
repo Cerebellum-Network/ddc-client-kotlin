@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    kotlin("jvm") version "1.4.32"
+    kotlin("jvm") version "1.6.10"
 
     id("com.avast.gradle.docker-compose") version "0.14.3"
     id("me.champeau.jmh") version "0.6.6"
