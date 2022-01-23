@@ -58,7 +58,9 @@ class DdcProducer(
         return Uni.createFrom().completionStage { appTopology.get() }
             .onItem().transformToUni { item ->
                 val targetNode = metadataManager.getProducerTargetNode(piece.userPubKey!!, item)
-                client.postAbs("$targetNode/api/rest/pieces").sendJson(piece)
+                client.postAbs("$targetNode/api/rest/pieces")
+                    .putHeader("Signing-Algorithm", config.signatureScheme.name)
+                    .sendJson(piece)
             }
             .onFailure().call { -> updateAppTopology() }
             .onFailure().retry().withBackOff(config.connectionRetryBackOff).expireIn(config.retryExpiration.toMillis())
