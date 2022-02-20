@@ -9,7 +9,7 @@ on:
       - master
 jobs:
   test:
-    runs-on: ubuntu-18.04
+    runs-on: [self-hosted, cere-network-large-workers]
     steps:
       - name: Checkout the code
         uses: actions/checkout@master
@@ -17,6 +17,10 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: '11'
+      - uses: KengoTODA/actions-setup-docker-compose@main
+        name: 'Install docker-compose'
+        with:
+          version: '1.29.2'
       - name: Cache build .gradle dir
         uses: actions/cache@v2
         with:
